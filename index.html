@@ -144,6 +144,7 @@
         <button class="btn" id="playSlow">🐢 천천히</button>
         <button class="btn" id="playSlower">🐌 아주 천천히</button>
         <button class="btn" id="playWords" title="단어를 하나씩 끊어서 읽어요">👆 한 단어씩</button>
+        <button class="btn" id="spellThis" title="소리만 듣고 스펠링 써 보기">✍️ 써 보기</button>
         <button class="btn good" id="saveBtn" style="margin-left:auto">⭐ 저장</button>
       </div>
       <div class="meaning">
@@ -177,7 +178,7 @@
       </div>
       <p class="muted" style="font-size:13px;margin:8px 0 0">영어 쓰고 <b>Enter</b> → 뜻 확인하고 <b>Enter</b> 하면 들어가요</p>
       <div id="addDict"></div>
-      <p style="margin:14px 0 4px"><strong id="addedTitle"></strong></p>
+      <div class="row" style="margin:14px 0 4px"><strong id="addedTitle" style="flex:1"></strong><button class="btn small hidden" id="spellAdded">✍️ 이 단어들 받아쓰기</button></div>
       <ul class="list" id="addedList"></ul>
     </div>
     <div class="card">
@@ -557,6 +558,7 @@
       <li class="item${i.id===lastAddedId?' new':''}" data-id="${i.id}">
         <button class="btn small" data-act="play" title="듣기">🔊</button>
         <button class="btn small" data-act="slow" title="천천히">🐢</button>
+        <button class="btn small" data-act="spell" title="소리 듣고 스펠링 써 보기">✍️</button>
         <div class="txt">
           <div class="en">${esc(i.en)}${i.wrong ? `<span class="badge">틀림 ${i.wrong}</span>`:''}</div>
           <div class="ko">${i.ko ? esc(i.ko) : '<i>뜻 없음 – ✏️ 눌러서 추가</i>'}</div>
@@ -580,15 +582,24 @@
     $('#emptySaved').classList.toggle('hidden', items.length > 0);
     $('#savedList').innerHTML = groups().map(g => {
       const its = items.filter(i => gname(i) === g);
-      return `<li class="ghead">📚 ${esc(g)} <span class="muted" style="font-weight:400">· ${its.length}개</span></li>` + its.map(rowHtml).join('');
+      return `<li class="ghead row">📚 ${esc(g)} <span class="muted" style="font-weight:400;flex:1">· ${its.length}개</span><button class="btn small" data-spellgroup="${esc(g)}">✍️ 이 묶음 받아쓰기</button></li>` + its.map(rowHtml).join('');
     }).join('');
     $('#groupList').innerHTML = groups().map(g => `<option value="${esc(g)}">`).join('');
     fillGroupSelect($('#quizGroup')); fillGroupSelect($('#spellGroup'));
     const cg = curGroup(), mine = items.filter(i => gname(i) === cg);
     $('#addedTitle').textContent = mine.length ? `"${cg}"에 넣은 단어 ${mine.length}개` : '';
     $('#addedList').innerHTML = mine.map(rowHtml).join('');
+    $('#spellAdded').classList.toggle('hidden', !mine.length);
   }
+  $('#spellAdded').onclick = () => goSpell(items.filter(i => gname(i) === curGroup()), curGroup());
+  $('#spellThis').onclick = () => {
+    const en = $('#input').value.trim().replace(/\s+/g, ' ');
+    const saved = items.find(i => i.en.toLowerCase() === en.toLowerCase());
+    goSpell([saved || { id: 'tmp', en, ko: $('#meaning').value.trim(), wrong: 0, right: 0 }], '방금 들은 말');
+  };
   $('#savedList').onclick = $('#addedList').onclick = e => {
+    const sg = e.target.closest('[data-spellgroup]');
+    if (sg) return goSpell(items.filter(i => gname(i) === sg.dataset.spellgroup), sg.dataset.spellgroup);
     const txt = e.target.closest('.txt');
     if (txt){
       const id = txt.closest('.item').dataset.id; openId = openId === id ? null : id;
@@ -600,6 +611,7 @@
     const it = items.find(i => i.id === b.closest('[data-id]').dataset.id); if (!it) return;
     const act = b.dataset.act;
     if (act==='usedict'){ it.ko = it.dict.ko; store.save(items); renderSaved(); toast('뜻을 바꿨어요'); }
+    if (act==='spell') return goSpell([it], it.en.length > 20 ? '저장한 문장' : '저장한 단어');
     if (act==='play') speak(it.en, 1);
     if (act==='slow') speak(it.en, slowRate());
     if (act==='edit'){ const v = prompt(`"${it.en}"의 뜻`, it.ko || ''); if (v!==null){ it.ko = v.trim(); store.save(items); renderSaved(); } }
@@ -746,9 +758,24 @@
 
   /* ---------- 받아쓰기 ---------- */
   let spell = null;
-  $('#spellWrongOnly').onchange = startSpell;
+  $('#spellWrongOnly').onchange = () => startSpell();
   const norm = s => s.toLowerCase().replace(/[’']/g,"'").replace(/[.,!?;:"]/g,'').replace(/\s+/g,' ').trim();
-  function startSpell(){
+  let pendingSpell = null;
+  // 원하는 단어(들)로 바로 받아쓰기 시작 — 듣기·저장 목록·묶음에서 부름
+  function goSpell(list, label){
+    list = list.filter(i => i && i.en);
+    if (!list.length) return toast('먼저 영어를 써 주세요');
+    pendingSpell = { list, label };
+    document.querySelector('[data-tab=spell]').click();
+  }
+  function startSpell(only){
+    if (!only && pendingSpell){ only = pendingSpell; pendingSpell = null; }
+    if (only){
+      $('#spellBody').dataset.only = '1';
+      spell = { qs: shuffle(only.list), i:0, score:0, hints:0, tries:0, only };
+      return showSpell();
+    }
+    $('#spellBody').dataset.only = '';
     const qs = pickQs(pool($('#spellWrongOnly').checked, $('#spellGroup').value), +$('#spellCount').value);
     if (!items.length){ $('#spellBody').innerHTML = `<p class="muted center">먼저 단어를 저장해 주세요.</p>`; return; }
     if (!qs.length){ $('#spellBody').innerHTML = `<p class="muted center">틀린 단어가 없어요! 🎉</p>`; return; }
@@ -762,7 +789,7 @@
     if (i >= qs.length) return spellEnd();
     const it = qs[i]; spell.hints = 0; spell.tries = 0; spell.done = false;
     $('#spellBody').innerHTML = `
-      <div class="muted" style="font-size:14px">${i+1} / ${qs.length} · 점수 ${spell.score}</div>
+      <div class="muted" style="font-size:14px">${spell.only && spell.only.label ? `✍️ ${esc(spell.only.label)} · ` : ''}${i+1} / ${qs.length} · 점수 ${spell.score}</div>
       <div class="progress"><div style="width:${i/qs.length*100}%"></div></div>
       <div class="center">
         <button class="btn primary big-play" id="sPlay">🔊</button>
@@ -771,6 +798,7 @@
           <button class="btn small" id="sHint">💡 힌트</button>
           ${it.ko?`<button class="btn small" id="sKo">🇰🇷 뜻 보기</button>`:''}
         </div>
+        <div class="muted" style="margin-top:8px;font-size:14px">🔤 ${/\s/.test(it.en.trim()) ? `${it.en.trim().split(/\s+/).length}단어` : `${it.en.replace(/[^a-z]/gi,'').length}글자`}</div>
         <div class="muted hidden" id="sKoText" style="margin-top:8px">${esc(it.ko||'')}</div>
         <div class="hint hidden" id="sHintText"></div>
       </div>
@@ -816,14 +844,18 @@
     const a = typed.trim(), b = answer.trim();
     return a.split('').map((ch,idx) => `<span class="${(b[idx]||'').toLowerCase()===ch.toLowerCase()?'ok':'no'}">${esc(ch)}</span>`).join('');
   }
-  $('#spellBody').addEventListener('click', e => { if (e.target.id==='sAgain') startSpell(); });
+  $('#spellBody').addEventListener('click', e => {
+    if (e.target.id==='sAgain') startSpell(spell && spell.only || undefined);
+    if (e.target.id==='sAll') startSpell();
+  });
   function spellEnd(){
     const { score, qs } = spell;
     $('#spellBody').innerHTML = `
       <div class="quiz-q">${score} / ${qs.length}</div>
       <p class="center muted">힌트 없이 한 번에 맞힌 개수예요</p>
       <p class="center" style="font-size:20px">${score===qs.length?'🏆 만점이에요!':score>=qs.length*0.7?'👍 잘했어요!':'💪 다시 해 봐요!'}</p>
-      <div class="center"><button class="btn primary" id="sAgain">다시 받아쓰기</button></div>`;
+      <div class="row" style="justify-content:center"><button class="btn primary" id="sAgain">${spell.only ? '같은 단어 다시 쓰기' : '다시 받아쓰기'}</button>
+      ${spell.only ? '<button class="btn" id="sAll">전체 단어 받아쓰기</button>' : ''}</div>`;
   }
 
   items.forEach(i => { if (!i.group) i.group = String(i.id).startsWith('seed') ? '예시' : '기타'; });
