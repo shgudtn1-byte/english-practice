@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>영어 발음 연습장</title>
+<style>
+  :root{
+    --bg:#f6f4ee; --card:#ffffff; --ink:#1f2430; --muted:#6b7280; --line:#e6e2d8;
+    --accent:#2f6fed; --accent-ink:#ffffff; --soft:#e9f0ff; --good:#1f9d55; --good-soft:#e5f6ec;
+    --bad:#d64545; --bad-soft:#fdeaea; --warn:#f2a900;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#15171c; --card:#1f232b; --ink:#eef0f4; --muted:#9aa3b2; --line:#2e333d;
+      --accent:#6b9bff; --accent-ink:#0d1117; --soft:#243150; --good:#4cc38a; --good-soft:#1c3328;
+      --bad:#ff7b7b; --bad-soft:#3a2224;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:26px;margin:4px 0 2px}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:10px 16px;border-radius:999px;font-size:16px;cursor:pointer}
+  .tab.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+  textarea,input[type=text]{width:100%;font:inherit;font-size:20px;padding:12px 14px;border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);outline:none}
+  textarea:focus,input[type=text]:focus{border-color:var(--accent)}
+  textarea{min-height:72px;resize:vertical}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{border:0;border-radius:12px;padding:12px 16px;font:inherit;font-size:16px;font-weight:600;cursor:pointer;background:var(--soft);color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:var(--accent);color:var(--accent-ink)}
+  .btn.good{background:var(--good);color:#fff}
+  .btn.ghost{background:transparent;border:1px solid var(--line)}
+  .btn.small{padding:7px 10px;font-size:14px;border-radius:9px}
+  .btn:disabled{opacity:.45;cursor:default}
+  .meaning{margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--soft);min-height:48px}
+  .meaning label{font-size:13px;color:var(--muted);display:block}
+  .meaning input{font-size:18px;padding:6px 8px;border-width:1px;background:var(--card)}
+  .speed{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px}
+  .speed input{flex:1}
+  .muted{color:var(--muted)}
+  .list{list-style:none;margin:0;padding:0}
+  .item{display:flex;gap:10px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:0}
+  .item .txt{flex:1;min-width:0}
+  .item .en{font-size:18px;font-weight:600;word-break:break-word}
+  .item .ko{color:var(--muted);font-size:15px}
+  .badge{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--bad-soft);color:var(--bad);margin-left:6px;font-weight:600}
+  .quiz-q{font-size:28px;font-weight:700;text-align:center;margin:10px 0 4px;word-break:break-word}
+  .choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  @media (max-width:520px){.choices{grid-template-columns:1fr}}
+  .choice{padding:16px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:18px;cursor:pointer;text-align:left}
+  .choice.right{border-color:var(--good);background:var(--good-soft)}
+  .choice.wrong{border-color:var(--bad);background:var(--bad-soft)}
+  .feedback{text-align:center;font-size:20px;font-weight:700;margin-top:12px;min-height:30px}
+  .feedback.good{color:var(--good)} .feedback.bad{color:var(--bad)}
+  .big-play{width:110px;height:110px;border-radius:50%;font-size:44px;justify-content:center;margin:6px auto;display:flex}
+  .center{text-align:center}
+  .progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:6px 0 14px}
+  .progress div{height:100%;background:var(--accent);transition:width .3s}
+  .hint{letter-spacing:4px;font-family:ui-monospace,Menlo,monospace;font-size:22px;text-align:center;margin-top:8px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .diff span.ok{color:var(--good)} .diff span.no{color:var(--bad);text-decoration:underline}
+  .hidden{display:none!important}
+  #syncBadge[data-kind="ok"]{color:var(--good);border-color:var(--good)}
+  #syncBadge[data-kind="warn"]{color:var(--warn);border-color:var(--warn)}
+  #syncBadge[data-kind="bad"]{color:var(--bad);border-color:var(--bad)}
+  code{font-size:.9em;background:var(--soft);padding:1px 5px;border-radius:5px}
+  a{color:var(--accent)}
+  .addgrid{display:grid;grid-template-columns:1fr auto;gap:8px}
+  .addgrid input{font-size:20px}
+  .ghead{padding:14px 4px 4px;font-weight:700;color:var(--accent);border-bottom:2px solid var(--line)}
+  .gsel{font:inherit;font-size:15px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+  .item.new{animation:pop .6s}
+  @keyframes pop{from{background:var(--good-soft)}to{background:transparent}}
+  .dict{margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+  .sense{margin-bottom:12px;padding:10px 12px;font-size:17px;border-left:4px solid var(--accent);background:var(--bg);border-radius:8px}
+  .defs .ex{margin:6px 0 2px}
+  .pos{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--accent);margin-right:4px;vertical-align:2px}
+  .defs{margin:6px 0 0;padding-left:22px;font-size:15px}
+  .defs li{margin-bottom:6px}
+  .ex-title{font-weight:700;margin:12px 0 6px}
+  .ex{display:flex;gap:6px;align-items:flex-start;margin-bottom:10px;font-size:17px}
+  .ex b{color:var(--accent)}
+  .src{font-size:11px;color:var(--muted);margin-top:6px;text-align:right}
+  .item-detail{list-style:none;padding:0 4px 12px}
+  .item-detail .dict{margin-top:0}
+  .item .txt{cursor:pointer}
+  .item .more{font-size:12px;color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🗣️ 영어 발음 연습장</h1>
+  <p class="sub">단어나 문장을 쓰고 미국식 발음으로 들어 보세요. 저장한 단어로 시험도 볼 수 있어요.</p>
+  <div class="row" style="margin:-6px 0 14px"><button class="btn small ghost" id="syncBadge" title="여러 컴퓨터에서 같은 단어장 쓰기">☁️ …</button></div>
+  <div class="card hidden" id="syncCard">
+    <b>☁️ 여러 컴퓨터에서 같은 단어장 쓰기</b>
+    <p class="muted" style="font-size:14px;margin:6px 0">단어장은 GitHub 저장소 <b>shgudtn1-byte/english-practice</b>의 <code>data/words.json</code>에 계속 저장돼요.
+      어느 컴퓨터에서든 단어 보기와 시험은 바로 되고, <b>새 단어와 시험 결과를 저장</b>하려면 그 컴퓨터에서 한 번만 연결하면 돼요.</p>
+    <ol class="muted" style="font-size:14px;padding-left:20px;margin:6px 0 10px">
+      <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub 연결 키 만들기</a> 페이지를 열어요 (부모님 GitHub 계정)</li>
+      <li>Token name: <b>english-practice</b> · Expiration: 원하는 기간 (예: 1년)</li>
+      <li>Repository access → <b>Only select repositories</b> → <b>english-practice</b></li>
+      <li>Permissions → Repository permissions → <b>Contents</b> → <b>Read and write</b></li>
+      <li><b>Generate token</b>을 누르고 나온 <code>github_pat_…</code> 글자를 복사해 아래에 붙여 넣어요</li>
+    </ol>
+    <input type="password" id="tokenInput" autocomplete="off" placeholder="github_pat_…" style="font-size:16px">
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="tokenSave">🔗 이 컴퓨터 연결</button>
+      <button class="btn ghost" id="syncNow">🔄 지금 맞추기</button>
+      <button class="btn ghost" id="tokenClear">연결 끊기</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin:8px 0 0">연결 키는 이 컴퓨터의 브라우저에만 저장되고, 이 저장소 하나에만 쓸 수 있어요. 저장소가 공개라서 단어 목록은 다른 사람도 볼 수 있어요.</p>
+  </div>
+  <div class="card hidden" id="noSound" style="background:var(--bad-soft);border-color:var(--bad)">
+    <b>🔇 소리가 안 나요</b>
+    <ul style="margin:6px 0 0;padding-left:20px">
+      <li>이 파일을 <b>Chrome</b>이나 <b>Safari</b>에서 열어 주세요. (다른 앱 안의 미리보기 화면에서는 소리가 안 날 수 있어요)</li>
+      <li>컴퓨터 소리 크기와 무음 모드, 브라우저 탭의 음소거를 확인해 주세요.</li>
+      <li>그래도 안 되면 아래 <b>목소리</b>를 다른 것으로 바꿔 보세요.</li>
+    </ul>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="listen">🔊 듣기</button>
+    <button class="tab" data-tab="add">✍️ 배운 단어 넣기</button>
+    <button class="tab" data-tab="saved">📒 저장한 단어 <span id="savedCount"></span></button>
+    <button class="tab" data-tab="quiz">📝 뜻 시험</button>
+    <button class="tab" data-tab="spell">✏️ 받아쓰기</button>
+  </div>
+
+  <!-- 듣기 -->
+  <section id="tab-listen">
+    <div class="card">
+      <textarea id="input" placeholder="예: apple  /  How are you today?"></textarea>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="playNormal">🔊 듣기</button>
+        <button class="btn" id="playSlow">🐢 천천히</button>
+        <button class="btn" id="playSlower">🐌 아주 천천히</button>
+        <button class="btn" id="playWords" title="단어를 하나씩 끊어서 읽어요">👆 한 단어씩</button>
+        <button class="btn good" id="saveBtn" style="margin-left:auto">⭐ 저장</button>
+      </div>
+      <div class="meaning">
+        <label>한국어 뜻 <span id="transStatus"></span></label>
+        <input type="text" id="meaning" placeholder="영어를 쓰면 뜻이 자동으로 나와요 (직접 고칠 수도 있어요)">
+      </div>
+      <div id="dictCard"></div>
+    </div>
+    <div class="card">
+      <div class="speed">목소리
+        <select id="voiceSel" style="flex:1;font:inherit;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)"></select>
+      </div>
+      <div class="speed" style="margin-top:10px">🐢 천천히 속도 <input type="range" id="slowRate" min="0.3" max="0.9" step="0.05" value="0.6"><span id="slowRateVal">0.6</span></div>
+    </div>
+  </section>
+
+  <!-- 배운 단어 넣기 -->
+  <section id="tab-add" class="hidden">
+    <div class="card">
+      <label class="muted" style="font-size:14px">📚 어디서 배웠나요? (예: Unit 3, 학원 숙제, 11월 12일)</label>
+      <input type="text" id="groupName" list="groupList" style="font-size:18px;margin-top:4px">
+      <datalist id="groupList"></datalist>
+    </div>
+    <div class="card">
+      <strong>단어 하나씩 넣기</strong>
+      <div class="addgrid" style="margin-top:10px">
+        <input type="text" id="addEn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="영어 (예: banana)">
+        <button class="btn" id="addPlay" title="듣기">🔊</button>
+        <input type="text" id="addKo" autocomplete="off" placeholder="뜻 (자동으로 나와요)">
+        <button class="btn primary" id="addBtn">➕ 넣기</button>
+      </div>
+      <p class="muted" style="font-size:13px;margin:8px 0 0">영어 쓰고 <b>Enter</b> → 뜻 확인하고 <b>Enter</b> 하면 들어가요</p>
+      <div id="addDict"></div>
+      <p style="margin:14px 0 4px"><strong id="addedTitle"></strong></p>
+      <ul class="list" id="addedList"></ul>
+    </div>
+    <div class="card">
+      <strong>여러 개 한꺼번에 넣기</strong>
+      <textarea id="bulk" style="margin-top:10px;font-size:17px;min-height:120px" placeholder="한 줄에 하나씩 써요&#10;apple = 사과&#10;banana&#10;(뜻을 안 쓰면 자동으로 찾아줘요)"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn primary" id="bulkBtn">📥 모두 넣기</button><span class="muted" id="bulkStatus"></span></div>
+    </div>
+  </section>
+
+  <!-- 저장 목록 -->
+  <section id="tab-saved" class="hidden">
+    <div class="card">
+      <div class="row" style="margin-bottom:6px">
+        <strong style="flex:1">저장한 단어·문장</strong>
+        <button class="btn small ghost" id="exportBtn">내보내기</button>
+        <button class="btn small ghost" id="importBtn">가져오기</button>
+      </div>
+      <ul class="list" id="savedList"></ul>
+      <p class="muted center" id="emptySaved">아직 저장한 것이 없어요. 듣기 탭에서 ⭐ 저장을 눌러 보세요.</p>
+    </div>
+  </section>
+
+  <!-- 뜻 시험 -->
+  <section id="tab-quiz" class="hidden">
+    <div class="card">
+      <div class="seg">
+        <button class="btn small" data-qmode="en2ko">영어 보고 → 뜻 고르기</button>
+        <button class="btn small" data-qmode="audio2ko">소리 듣고 → 뜻 고르기</button>
+        <button class="btn small" data-qmode="ko2en">뜻 보고 → 영어 고르기</button>
+      </div>
+      <div class="row"><span class="muted" style="font-size:14px">📚 범위</span><select class="gsel" id="quizGroup"></select>
+      <select class="gsel qcount" id="quizCount"><option value="10">10문제</option><option value="20">20문제</option><option value="30">30문제</option><option value="0">모두</option></select>
+      <label class="muted" style="font-size:14px"><input type="checkbox" id="quizWrongOnly"> 틀린 것만 다시 풀기</label></div>
+      <div id="quizBody" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- 받아쓰기 -->
+  <section id="tab-spell" class="hidden">
+    <div class="card">
+      <div class="row"><span class="muted" style="font-size:14px">📚 범위</span><select class="gsel" id="spellGroup"></select>
+      <select class="gsel qcount" id="spellCount"><option value="10">10문제</option><option value="20">20문제</option><option value="30">30문제</option><option value="0">모두</option></select>
+      <label class="muted" style="font-size:14px"><input type="checkbox" id="spellWrongOnly"> 틀린 것만 다시 풀기</label></div>
+      <div id="spellBody" style="margin-top:12px"></div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const KEY = 'eng-practice-items-v1', TOMB_KEY = 'eng-practice-tomb-v1';
+  const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  // 동기화할 내용 (사전 정보는 크기가 커서 빼고, 필요할 때 다시 찾음)
+  const slim = i => ({ id: i.id, en: i.en, ko: i.ko || '', group: i.group || '', wrong: i.wrong || 0, right: i.right || 0, added: i.added || 0, updated: i.updated || 0 });
+  const sig = i => { const { updated, ...rest } = slim(i); return JSON.stringify(rest); };
+  let tomb = {}; try { tomb = JSON.parse(lsGet(TOMB_KEY)) || {}; } catch {}   // 지운 단어 기록: id → 지운 시각
+  let snap = {};
+  const store = {
+    load(){ let v = []; try { v = JSON.parse(lsGet(KEY)) || []; } catch {} v.forEach(i => snap[i.id] = sig(i)); return v; },
+    // 바뀐 단어에 시각을 찍고, 지운 단어를 기록한 뒤 GitHub에 올리기 예약
+    save(v, fromSync){
+      const now = Date.now(), seen = {};
+      v.forEach(i => { seen[i.id] = 1; const s = sig(i); if (snap[i.id] !== s){ if (!fromSync) i.updated = now; snap[i.id] = s; } });
+      Object.keys(snap).forEach(id => { if (!seen[id]){ delete snap[id]; if (!fromSync) tomb[id] = now; } });
+      lsSet(KEY, JSON.stringify(v)); lsSet(TOMB_KEY, JSON.stringify(tomb));
+      if (!fromSync) Sync.schedule();
+    }
+  };
+  let items = store.load();
+
+  /* ---------- GitHub에 단어장 저장 (여러 컴퓨터에서 같이 쓰기) ---------- */
+  const b64enc = s => { const b = new TextEncoder().encode(s); let out = ''; for (let k = 0; k < b.length; k += 0x8000) out += String.fromCharCode.apply(null, b.subarray(k, k + 0x8000)); return btoa(out); };
+  const b64dec = c => new TextDecoder().decode(Uint8Array.from(atob(c.replace(/\s/g, '')), ch => ch.charCodeAt(0)));
+  const Sync = {
+    repo: 'shgudtn1-byte/english-practice', path: 'data/words.json',
+    sha: null, timer: null, busy: false, again: false, last: 0,
+    token(){ return lsGet('eng-practice-gh-token') || ''; },
+    status(text, kind){ const b = document.querySelector('#syncBadge'); if (b){ b.textContent = text; b.dataset.kind = kind || ''; } },
+    api(path, opt = {}){
+      const h = { 'Accept': 'application/vnd.github+json' };
+      if (this.token()) h.Authorization = 'Bearer ' + this.token();
+      if (opt.body) h['Content-Type'] = 'application/json';
+      return fetch('https://api.github.com/repos/' + this.repo + path, { cache: 'no-store', ...opt, headers: h });
+    },
+    async pull(){
+      const r = await this.api('/contents/' + this.path);
+      if (r.status === 404){ this.sha = null; return { items: [], tomb: {} }; }
+      if (!r.ok) throw new Error('read ' + r.status);
+      const j = await r.json(); this.sha = j.sha;
+      return JSON.parse(b64dec(j.content));
+    },
+    merge(remote){
+      const allTomb = { ...(remote.tomb || {}) };
+      Object.entries(tomb).forEach(([id, t]) => allTomb[id] = Math.max(allTomb[id] || 0, t));
+      const local = {}; items.forEach(i => local[i.id] = i);
+      const byId = {};
+      (remote.items || []).forEach(r => byId[r.id] = local[r.id] ? { ...r, dict: local[r.id].dict } : r);
+      items.forEach(i => { const r = byId[i.id]; if (!r || (i.updated || 0) >= (r.updated || 0)) byId[i.id] = i; });
+      let merged = Object.values(byId).filter(i => !(allTomb[i.id] && allTomb[i.id] >= (i.updated || 0)));
+      // 두 컴퓨터에서 같은 단어를 따로 넣었으면 하나만 남기기
+      const byEn = {};
+      merged.forEach(i => { const k = i.en.toLowerCase(), o = byEn[k];
+        if (!o) byEn[k] = i;
+        else { const keep = (i.updated || 0) > (o.updated || 0) ? i : o, drop = keep === i ? o : i;
+          keep.wrong = Math.max(keep.wrong || 0, drop.wrong || 0); keep.right = Math.max(keep.right || 0, drop.right || 0);
+          allTomb[drop.id] = Date.now(); byEn[k] = keep; } });
+      merged = Object.values(byEn).sort((a, b) => (b.added || 0) - (a.added || 0));
+      return { merged, allTomb };
+    },
+    schedule(){ clearTimeout(this.timer); this.timer = setTimeout(() => this.run(), 1500); },
+    async run(){
+      if (this.busy){ this.again = true; return; }
+      this.busy = true; this.status('☁️ 맞추는 중…');
+      try {
+        for (let attempt = 0; attempt < 3; attempt++){
+          const remote = await this.pull();
+          const { merged, allTomb } = this.merge(remote);
+          items = merged; tomb = allTomb; store.save(items, true); renderSaved();
+          const next = { version: 1, items: items.map(slim), tomb };
+          const canon = (its, tb) => JSON.stringify([its.map(slim).sort((a, b) => a.id < b.id ? -1 : 1), Object.entries(tb || {}).sort()]);
+          const same = canon(remote.items || [], remote.tomb) === canon(items, tomb);
+          if (same || !this.token()) break;
+          const r = await this.api('/contents/' + this.path, { method: 'PUT', body: JSON.stringify({
+            message: `단어장 저장 (${items.length}개)`, content: b64enc(JSON.stringify(next, null, 1)), ...(this.sha ? { sha: this.sha } : {}) }) });
+          if (r.ok){ this.sha = (await r.json()).content.sha; break; }
+          if (r.status === 401 || r.status === 403) throw new Error('auth');
+          if (r.status !== 409 && r.status !== 422) throw new Error('write ' + r.status);   // 다른 컴퓨터가 먼저 저장했으면 다시 합치기
+        }
+        this.last = Date.now();
+        const t = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        this.token() ? this.status(`☁️ GitHub에 저장됨 · ${t}`, 'ok') : this.status('👀 보기 전용 – 저장하려면 이 컴퓨터를 연결하세요', 'warn');
+      } catch (e) {
+        if (e.message === 'auth') this.status('⚠️ GitHub 연결 키가 맞지 않아요 – 다시 연결해 주세요', 'bad');
+        else this.status('⚠️ 인터넷 연결 안 됨 – 이 컴퓨터에만 저장했어요', 'bad');
+      }
+      this.busy = false;
+      if (this.again){ this.again = false; this.schedule(); }
+    },
+    async connect(tok){
+      lsSet('eng-practice-gh-token', tok.trim());
+      const r = await this.api('');
+      const j = r.ok ? await r.json() : {};
+      if (!r.ok || !(j.permissions && j.permissions.push)){ lsSet('eng-practice-gh-token', ''); return false; }
+      await this.run(); return true;
+    },
+    init(){
+      this.run();
+      window.addEventListener('focus', () => { if (Date.now() - this.last > 30000) this.run(); });
+    }
+  };
+
+  const toast = msg => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1600); };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const shuffle = a => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+  /* ---------- 음성 ---------- */
+  let voices = [];
+  const prefer = ['Samantha','Google US English','Microsoft Aria','Microsoft Jenny','Microsoft Zira','Alex','Ava','Allison'];
+  function loadVoices(){
+    voices = speechSynthesis.getVoices().filter(v => /^en[-_]US/i.test(v.lang));
+    const sel = $('#voiceSel'); const prev = sel.value || localStorageGet('voice');
+    sel.innerHTML = voices.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('') || '<option value="">기본 (en-US)</option>';
+    let pick = voices.find(v => v.name === prev) || prefer.map(p => voices.find(v => v.name.includes(p))).find(Boolean) || voices[0];
+    if (pick) sel.value = pick.name;
+  }
+  function localStorageGet(k){ try { return localStorage.getItem('eng-practice-'+k); } catch { return null; } }
+  function localStorageSet(k,v){ try { localStorage.setItem('eng-practice-'+k, v); } catch {} }
+  if ('speechSynthesis' in window){
+    loadVoices(); speechSynthesis.onvoiceschanged = loadVoices;
+  } else { alert('이 브라우저는 음성 읽기를 지원하지 않아요. Chrome이나 Safari를 사용해 주세요.'); }
+  $('#voiceSel').onchange = e => { localStorageSet('voice', e.target.value); speak('Hello! Nice to meet you.'); };
+
+  let currentUtter = null, startTimer;
+  const showNoSound = on => $('#noSound').classList.toggle('hidden', !on);
+  function speak(text, rate=1, onend){
+    text = (text||'').trim(); if (!text) return;
+    if (!window.speechSynthesis) return showNoSound(true);
+    const make = useVoice => {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US'; u.rate = rate;
+      const v = useVoice && voices.find(v => v.name === $('#voiceSel').value); if (v) u.voice = v;
+      u.onstart = () => { u._started = true; clearTimeout(startTimer); showNoSound(false); };
+      u.onend = () => { if (onend) onend(); };
+      u.onerror = e => {
+        if (['interrupted','canceled'].includes(e.error)) return;
+        if (useVoice){ go(false); } else showNoSound(true);   // 고른 목소리가 실패하면 기본 목소리로 다시
+      };
+      return u;
+    };
+    const go = useVoice => {
+      const u = make(useVoice); currentUtter = u;            // 크롬에서 소리가 끊기지 않도록 참조 유지
+      speechSynthesis.resume();
+      speechSynthesis.speak(u);
+      clearTimeout(startTimer);
+      startTimer = setTimeout(() => { if (currentUtter === u && !u._started) showNoSound(true); }, 2000);
+    };
+    if (speechSynthesis.speaking || speechSynthesis.pending){ speechSynthesis.cancel(); setTimeout(() => go(true), 80); }
+    else go(true);
+  }
+  function speakWords(text){
+    const words = text.split(/\s+/).filter(Boolean); let i = 0;
+    const next = () => { if (i < words.length) speak(words[i++], 0.7, () => setTimeout(next, 350)); };
+    speechSynthesis.cancel(); next();
+  }
+  const slowRate = () => parseFloat($('#slowRate').value);
+  $('#slowRate').oninput = e => { $('#slowRateVal').textContent = e.target.value; localStorageSet('slow', e.target.value); };
+  const savedSlow = localStorageGet('slow'); if (savedSlow){ $('#slowRate').value = savedSlow; $('#slowRateVal').textContent = savedSlow; }
+
+  /* ---------- 번역 ---------- */
+  const cache = {};
+  let transTimer, transSeq = 0;
+  const POS_KO = {noun:'명사',verb:'동사',adjective:'형용사',adverb:'부사',pronoun:'대명사',preposition:'전치사',conjunction:'접속사',interjection:'감탄사',exclamation:'감탄사',abbreviation:'줄임말',article:'관사',determiner:'한정사',prefix:'접두사',suffix:'접미사'};
+  async function gtx(q, dts){
+    const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dj=1&' + dts.map(d => 'dt=' + d).join('&') + '&q=' + encodeURIComponent(q));
+    if (!r.ok) throw new Error('gtx ' + r.status);
+    return r.json();
+  }
+  async function myMemory(text){
+    const r = await fetch('https://api.mymemory.translated.net/get?langpair=en|ko&q=' + encodeURIComponent(text));
+    const j = await r.json();
+    const out = (j.responseData && j.responseData.translatedText) || '';
+    return /MYMEMORY WARNING|QUERY LENGTH/i.test(out) ? '' : out;
+  }
+  async function koLines(lines){   // 여러 줄을 한 번에 한국어로
+    if (!lines.length) return [];
+    try {
+      const j = await gtx(lines.join('\n'), ['t']);
+      const out = (j.sentences || []).map(s => s.trans || '').join('').split('\n').map(s => s.trim());
+      return out.length === lines.length ? out : lines.map(() => '');
+    } catch { return lines.map(() => ''); }
+  }
+  // 쉬운 예문 + 사람이 번역한 한국어 (Tatoeba)
+  async function tatoeba(word){
+    try {
+      const r = await fetch('https://api.tatoeba.org/unstable/sentences?lang=eng&trans:lang=kor&sort=words&limit=20&q=' + encodeURIComponent(word));
+      const j = await r.json();
+      const re = new RegExp('\\b(' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\w*)', 'i');
+      return (j.data || []).filter(s => s.translations && s.translations.length && s.translations[0].text && s.text.split(' ').length >= 4 && re.test(s.text))
+        .slice(0, 2).map(s => ({ en: s.text, html: s.text.replace(re, '<b>$1</b>'), ko: s.translations[0].text }));
+    } catch { return []; }
+  }
+  // 사전 찾기: 품사(명사·동사·형용사·부사…)마다 한국어 뜻 + Oxford 영어 뜻 + 그 뜻의 예문
+  async function lookup(text){
+    text = text.trim().replace(/\s+/g, ' ');
+    const key = text.toLowerCase();
+    if (cache[key]) return cache[key];
+    let res;
+    try {
+      const j = await gtx(text, ['t','bd','md','ex']);
+      const main = (j.sentences || []).map(s => s.trans || '').join('').trim();
+      const wc = s => s.split(' ').length;
+      const brandOnly = (d, t) => { const e = (d.entry || []).find(x => x.word === t); return e && e.reverse_translation && e.reverse_translation.every(w => /^[A-Z]/.test(w)); };
+      const mds = j.definitions || [];
+      // 예문을 뜻(definition_id)별로 모으고, 완전한 문장·적당한 길이를 먼저
+      const isSentence = s => /^[A-Z]/.test(s) || /^(i|you|he|she|it|we|they|my|your|his|her|our|their|this|that|there)\b/i.test(s);
+      const exRank = e => (isSentence(e.en) ? 0 : 5) + Math.abs(wc(e.en) - 8) * 0.3 + (wc(e.en) < 4 ? 10 : 0);
+      const exById = {};
+      ((j.examples && j.examples.example) || []).forEach(e => {
+        const x = { en: e.text.replace(/<\/?b>/g, ''), html: e.text };
+        (exById[e.definition_id] = exById[e.definition_id] || []).push(x);
+      });
+      Object.values(exById).forEach(a => a.sort((p, q) => exRank(p) - exRank(q)));
+      const posNames = [...new Set([...(j.dict || []).map(d => d.pos), ...mds.map(m => m.pos)])];
+      let senses = posNames.map(pos => {
+        const d = (j.dict || []).find(x => x.pos === pos);
+        const m = mds.find(x => x.pos === pos);
+        const terms = d ? (d.terms || []).filter(t => !brandOnly(d, t)).slice(0, 6) : [];
+        const all = m ? m.entry : [];
+        // 대표 뜻 1개 + 예문이 있는 뜻 우선, 최대 3개 (원래 순서대로)
+        const chosen = [...all.slice(0, 1), ...all.filter(e => exById[e.definition_id]), ...all]
+          .filter((e, k, a) => a.indexOf(e) === k).slice(0, 3)
+          .sort((a, b) => all.indexOf(a) - all.indexOf(b));
+        const defs = chosen.map(e => ({ en: e.gloss, ex: (exById[e.definition_id] || [])[0] || null }));
+        // 이 품사 예문이 2개가 안 되면 같은 품사의 다른 뜻 예문으로 채우기
+        const have = defs.filter(x => x.ex).length;
+        const extra = all.filter(e => !chosen.includes(e)).flatMap(e => exById[e.definition_id] || [])
+          .sort((p, q) => exRank(p) - exRank(q)).slice(0, Math.max(0, 2 - have));
+        return { pos, terms, defs, extra };
+      }).filter(s => s.terms.length || s.defs.length);
+      senses.sort((a, b) => b.terms.includes(main) - a.terms.includes(main));   // 대표 뜻의 품사를 먼저
+      senses = senses.slice(0, 4);
+      // Oxford 예문이 거의 없으면 쉬운 예문으로 보충
+      const exCount = senses.reduce((n, s) => n + s.defs.filter(x => x.ex).length + s.extra.length, 0);
+      const examples = exCount < 2 && !/\s/.test(text) ? await tatoeba(text) : [];
+      // 영어 뜻과 예문을 한 번에 한국어로
+      const lines = [], todo = [];
+      const put = o => { if (o && !o.ko){ todo.push(o); lines.push(o.en); } };
+      senses.forEach(s => { s.defs.forEach(d => { put(d); put(d.ex); }); s.extra.forEach(put); });
+      const kos = await koLines(lines);
+      todo.forEach((o, k) => o.ko = kos[k]);
+      const short = senses.filter(s => s.terms.length).slice(0, 2).map(s => s.terms.slice(0, 2).join(', ')).join(' / ');
+      res = { ko: short || main, senses, examples };
+    } catch {
+      res = { ko: await myMemory(text), senses: [], examples: [] };
+    }
+    cache[key] = res; return res;
+  }
+  const translate = async text => (await lookup(text)).ko;
+  const hasDict = d => d && ((d.senses && d.senses.length) || (d.examples && d.examples.length));
+  function dictHtml(d){
+    if (!hasDict(d)) return '';
+    const bold = s => esc(s).replace(/&lt;(\/?)b&gt;/g, '<$1b>');
+    const exHtml = e => `<div class="ex"><button class="btn small" data-say="${esc(e.en)}" title="듣기">🔊</button><button class="btn small" data-say="${esc(e.en)}" data-slow="1" title="천천히">🐢</button>
+        <div><div>${bold(e.html || e.en)}</div>${e.ko ? `<div class="muted">${esc(e.ko)}</div>` : ''}</div></div>`;
+    const ex = d.examples || [];
+    return `<div class="dict">` + d.senses.map(s => `
+      <div class="sense">
+        <div><span class="pos">${esc(POS_KO[s.pos] || s.pos)}</span> <b>${esc(s.terms.join(', '))}</b></div>
+        ${s.defs.length ? `<ol class="defs">${s.defs.map(x => `<li>${esc(x.en)}${x.ko ? `<div class="muted">${esc(x.ko)}</div>` : ''}${x.ex ? exHtml(x.ex) : ''}</li>`).join('')}</ol>` : ''}
+        ${(s.extra || []).length ? `<div class="ex-title">📖 ${esc(POS_KO[s.pos] || s.pos)} 예문</div>` + s.extra.map(exHtml).join('') : ''}
+      </div>`).join('') +
+      (ex.length ? `<div class="ex-title">📖 예문</div>` + ex.map(exHtml).join('') : '') +
+      `<div class="src">뜻·예문: Oxford Languages (Google 사전)${ex.length ? ' · 쉬운 예문: Tatoeba' : ''}</div></div>`;
+  }
+  document.addEventListener('click', e => { const b = e.target.closest('[data-say]'); if (b) speak(b.dataset.say, b.dataset.slow ? slowRate() : 1); });
+  let currentDict = null;
+  function scheduleTranslate(){
+    clearTimeout(transTimer);
+    const text = $('#input').value.trim();
+    $('#meaning').dataset.auto = '1';
+    if (!text){ $('#meaning').value=''; $('#transStatus').textContent=''; $('#dictCard').innerHTML=''; currentDict=null; return; }
+    transTimer = setTimeout(async () => {
+      const seq = ++transSeq; $('#transStatus').textContent = '· 찾는 중…';
+      try {
+        const d = await lookup(text);
+        if (seq !== transSeq) return;
+        currentDict = { text: text.toLowerCase(), d };
+        $('#meaning').value = d.ko; $('#dictCard').innerHTML = dictHtml(d);
+        $('#transStatus').textContent = hasDict(d) ? '· Oxford 사전' : d.ko ? '· 자동 번역' : '· 뜻을 직접 써 주세요';
+      } catch {
+        if (seq === transSeq) $('#transStatus').textContent = '· 인터넷 연결이 없어 뜻을 못 찾았어요. 직접 써 주세요';
+      }
+    }, 600);
+  }
+  $('#input').addEventListener('input', scheduleTranslate);
+  $('#input').addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); speak($('#input').value, 1); } });
+
+  $('#playNormal').onclick = () => speak($('#input').value, 1);
+  $('#playSlow').onclick = () => speak($('#input').value, slowRate());
+  $('#playSlower').onclick = () => speak($('#input').value, Math.max(0.3, slowRate() - 0.25));
+  $('#playWords').onclick = () => speakWords($('#input').value);
+
+  /* ---------- 저장 ---------- */
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  const today = () => { const d = new Date(); return `${d.getMonth()+1}월 ${d.getDate()}일`; };
+  const gname = i => i.group || '기타';
+  const curGroup = () => $('#groupName').value.trim() || today();
+  let lastAddedId = null;
+  const packDict = d => hasDict(d) ? { v: 2, ko: d.ko, senses: d.senses, examples: d.examples } : undefined;
+  function addItem(en, ko, group, dict){
+    en = (en||'').trim().replace(/\s+/g,' '); ko = (ko||'').trim();
+    if (!en) return null;
+    const ex = items.find(i => i.en.toLowerCase() === en.toLowerCase());
+    if (ex){ if (ko) ex.ko = ko; if (packDict(dict)) ex.dict = packDict(dict); lastAddedId = ex.id; return 'updated'; }
+    const it = { id: newId(), en, ko, group: group || curGroup(), dict: packDict(dict), wrong:0, right:0, added: Date.now() };
+    items.unshift(it); lastAddedId = it.id; return 'added';
+  }
+
+  $('#saveBtn').onclick = () => {
+    const t = $('#input').value.trim().replace(/\s+/g,' ').toLowerCase();
+    const r = addItem($('#input').value, $('#meaning').value, null, currentDict && currentDict.text === t ? currentDict.d : null);
+    if (!r) return toast('먼저 영어를 써 주세요');
+    toast(r === 'added' ? `⭐ "${curGroup()}"에 저장했어요!` : '이미 있어서 뜻을 업데이트했어요');
+    store.save(items); renderSaved();
+  };
+
+  function groups(){ const g = []; items.forEach(i => { if (!g.includes(gname(i))) g.push(gname(i)); }); return g; }
+  function fillGroupSelect(sel){
+    const prev = sel.value;
+    sel.innerHTML = `<option value="">전체 (${items.length})</option>` + groups().map(g => `<option value="${esc(g)}">${esc(g)} (${items.filter(i=>gname(i)===g).length})</option>`).join('');
+    if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  }
+  const rowHtml = i => `
+      <li class="item${i.id===lastAddedId?' new':''}" data-id="${i.id}">
+        <button class="btn small" data-act="play" title="듣기">🔊</button>
+        <button class="btn small" data-act="slow" title="천천히">🐢</button>
+        <div class="txt">
+          <div class="en">${esc(i.en)}${i.wrong ? `<span class="badge">틀림 ${i.wrong}</span>`:''}</div>
+          <div class="ko">${i.ko ? esc(i.ko) : '<i>뜻 없음 – ✏️ 눌러서 추가</i>'}</div>
+          <div class="more">${openId === i.id ? '▾ 접기' : '▸ 뜻·예문 보기'}</div>
+        </div>
+        <button class="btn small ghost" data-act="edit" title="뜻 고치기">✏️</button>
+        <button class="btn small ghost" data-act="del" title="지우기">🗑️</button>
+      </li>${openId === i.id ? `<li class="item-detail" data-id="${i.id}">${
+        i.dict === undefined ? '<p class="muted">사전에서 찾는 중…</p>'
+        : hasDict(i.dict) ? (i.dict.ko && i.dict.ko !== i.ko ? `<div class="row" style="margin-bottom:8px"><span class="muted" style="font-size:14px">사전 뜻: <b>${esc(i.dict.ko)}</b></span><button class="btn small" data-act="usedict">🔄 이 뜻으로 바꾸기</button></div>` : '') + dictHtml(i.dict)
+        : '<p class="muted">사전에 없는 단어·문장이에요.</p>'}</li>` : ''}`;
+  let openId = null;
+  async function loadDict(it){
+    try { const d = await lookup(it.en); it.dict = packDict(d) || null; }
+    catch { it.dict = null; }
+    store.save(items); renderSaved();
+  }
+
+  function renderSaved(){
+    $('#savedCount').textContent = items.length ? `(${items.length})` : '';
+    $('#emptySaved').classList.toggle('hidden', items.length > 0);
+    $('#savedList').innerHTML = groups().map(g => {
+      const its = items.filter(i => gname(i) === g);
+      return `<li class="ghead">📚 ${esc(g)} <span class="muted" style="font-weight:400">· ${its.length}개</span></li>` + its.map(rowHtml).join('');
+    }).join('');
+    $('#groupList').innerHTML = groups().map(g => `<option value="${esc(g)}">`).join('');
+    fillGroupSelect($('#quizGroup')); fillGroupSelect($('#spellGroup'));
+    const cg = curGroup(), mine = items.filter(i => gname(i) === cg);
+    $('#addedTitle').textContent = mine.length ? `"${cg}"에 넣은 단어 ${mine.length}개` : '';
+    $('#addedList').innerHTML = mine.map(rowHtml).join('');
+  }
+  $('#savedList').onclick = $('#addedList').onclick = e => {
+    const txt = e.target.closest('.txt');
+    if (txt){
+      const id = txt.closest('.item').dataset.id; openId = openId === id ? null : id;
+      const it = items.find(i => i.id === id);
+      if (openId && it && (!it.dict || it.dict.v !== 2)) loadDict(it);
+      return renderSaved();
+    }
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const it = items.find(i => i.id === b.closest('[data-id]').dataset.id); if (!it) return;
+    const act = b.dataset.act;
+    if (act==='usedict'){ it.ko = it.dict.ko; store.save(items); renderSaved(); toast('뜻을 바꿨어요'); }
+    if (act==='play') speak(it.en, 1);
+    if (act==='slow') speak(it.en, slowRate());
+    if (act==='edit'){ const v = prompt(`"${it.en}"의 뜻`, it.ko || ''); if (v!==null){ it.ko = v.trim(); store.save(items); renderSaved(); } }
+    if (act==='del' && confirm(`"${it.en}"을(를) 지울까요?`)){ items = items.filter(x => x!==it); store.save(items); renderSaved(); }
+  };
+  $('#exportBtn').onclick = () => {
+    const txt = items.map(i => `${i.en}\t${i.ko||''}`).join('\n');
+    navigator.clipboard?.writeText(txt).then(() => toast('클립보드에 복사했어요'), () => prompt('아래 내용을 복사하세요', txt));
+  };
+  $('#importBtn').onclick = () => {
+    const txt = prompt('한 줄에 하나씩 붙여 넣으세요.\n형식:  영어[탭 또는 = ]뜻\n예: apple = 사과');
+    if (!txt) return; let n = 0;
+    txt.split('\n').forEach(line => { const [en, ko=''] = line.split(/\t|\s*=\s*/); if (addItem(en, ko) === 'added') n++; });
+    store.save(items); renderSaved(); toast(`${n}개 가져왔어요`);
+  };
+
+  /* ---------- 배운 단어 넣기 ---------- */
+  $('#groupName').value = today();
+  $('#groupName').addEventListener('input', renderSaved);
+  let addSeq = 0, addTimer, addCur = null;
+  $('#addEn').addEventListener('input', () => {
+    clearTimeout(addTimer); const text = $('#addEn').value.trim(); const seq = ++addSeq;
+    if (!text){ $('#addKo').value = ''; $('#addDict').innerHTML = ''; addCur = null; return; }
+    $('#addKo').placeholder = '뜻 찾는 중…';
+    addTimer = setTimeout(async () => {
+      try {
+        const d = await lookup(text); if (seq !== addSeq) return;
+        addCur = { text: text.toLowerCase(), d };
+        if (!$('#addKo').dataset.typed) $('#addKo').value = d.ko;
+        $('#addDict').innerHTML = dictHtml(d);
+      } catch {}
+      $('#addKo').placeholder = '뜻 (자동으로 나와요)';
+    }, 500);
+  });
+  $('#addKo').addEventListener('input', () => { $('#addKo').dataset.typed = $('#addKo').value ? '1' : ''; });
+  $('#addEn').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); speak($('#addEn').value, 1); $('#addKo').focus(); } });
+  $('#addKo').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); doAdd(); } });
+  $('#addPlay').onclick = () => speak($('#addEn').value, 1);
+  $('#addBtn').onclick = doAdd;
+  function doAdd(){
+    const en = $('#addEn').value;
+    const t = en.trim().replace(/\s+/g,' ').toLowerCase();
+    const r = addItem(en, $('#addKo').value, null, addCur && addCur.text === t ? addCur.d : null);
+    if (!r){ toast('영어 단어를 써 주세요'); return $('#addEn').focus(); }
+    $('#addDict').innerHTML = ''; addCur = null;
+    store.save(items); renderSaved();
+    toast(r === 'added' ? `➕ ${en.trim()} 넣었어요!` : '이미 있는 단어라 뜻만 바꿨어요');
+    ++addSeq; $('#addEn').value = ''; $('#addKo').value = ''; $('#addKo').dataset.typed = ''; $('#addEn').focus();
+  }
+  $('#bulkBtn').onclick = async () => {
+    const lines = $('#bulk').value.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return toast('단어를 한 줄에 하나씩 써 주세요');
+    $('#bulkBtn').disabled = true; let n = 0;
+    for (let k = 0; k < lines.length; k++){
+      let [en, ko = ''] = lines[k].split(/\t|\s*=\s*|\s+-\s+/); let d = null;
+      if (en){ $('#bulkStatus').textContent = `사전 찾는 중… ${k+1}/${lines.length}`; try { d = await lookup(en); if (!ko.trim()) ko = d.ko; } catch {} }
+      if (addItem(en, ko, null, d) === 'added') n++;
+    }
+    store.save(items); renderSaved();
+    $('#bulkBtn').disabled = false; $('#bulkStatus').textContent = ''; $('#bulk').value = '';
+    toast(`📥 ${n}개 넣었어요!`);
+  };
+
+  /* ---------- 탭 ---------- */
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x===t));
+    if (t.dataset.tab==='add') setTimeout(() => $('#addEn').focus(), 0);
+    ['listen','add','saved','quiz','spell'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
+    speechSynthesis?.cancel();
+    if (t.dataset.tab==='quiz') startQuiz();
+    if (t.dataset.tab==='spell') startSpell();
+  });
+
+  function pool(wrongOnly, group){ return items.filter(i => (!wrongOnly || i.wrong > 0) && (!group || gname(i) === group)); }
+  $('#quizGroup').onchange = $('#quizCount').onchange = () => startQuiz();
+  $('#spellGroup').onchange = $('#spellCount').onchange = () => startSpell();
+  // 처음부터 배운 모든 단어에서 고르되, 자주 틀린 단어와 오래 안 본 단어가 더 잘 나오게
+  function pickQs(list, n){
+    const now = Date.now();
+    const w = i => 1 + (i.wrong || 0) * 2 + Math.min(3, (now - (i.updated || i.added || now)) / 864e5 / 7);
+    const out = list.map(i => ({ i, k: Math.pow(Math.random(), 1 / w(i)) })).sort((a, b) => b.k - a.k).map(x => x.i);
+    return n ? out.slice(0, n) : out;
+  }
+  function mark(it, ok){ ok ? it.right++ : it.wrong++; if (ok && it.wrong>0 && it.right>=2) it.wrong = Math.max(0, it.wrong-1); store.save(items); renderSaved(); }
+
+  /* ---------- 뜻 시험 ---------- */
+  let qmode = 'en2ko', quiz = null;
+  document.querySelectorAll('[data-qmode]').forEach(b => b.onclick = () => { qmode = b.dataset.qmode; startQuiz(); });
+  $('#quizWrongOnly').onchange = startQuiz;
+  function paintModes(){ document.querySelectorAll('[data-qmode]').forEach(b => b.classList.toggle('primary', b.dataset.qmode===qmode)); }
+
+  function startQuiz(){
+    paintModes();
+    const withKo = items.filter(i => i.ko);
+    const qs = pickQs(pool($('#quizWrongOnly').checked, $('#quizGroup').value).filter(i => i.ko), +$('#quizCount').value);
+    if (withKo.length < 4){ $('#quizBody').innerHTML = `<p class="muted center">뜻이 있는 단어가 <b>4개 이상</b> 저장되어야 시험을 볼 수 있어요. (지금 ${withKo.length}개)</p>`; return; }
+    if (!qs.length){ $('#quizBody').innerHTML = `<p class="muted center">틀린 단어가 없어요! 🎉</p>`; return; }
+    quiz = { qs, i:0, score:0, wrongs:[] }; showQ();
+  }
+  function showQ(){
+    const { qs, i } = quiz;
+    if (i >= qs.length) return quizEnd();
+    const it = qs[i];
+    const others = shuffle(items.filter(x => x.ko && x !== it && x.ko !== it.ko)).slice(0,3);
+    const opts = shuffle([it, ...others]);
+    const showEn = qmode==='ko2en';
+    let prompt;
+    if (qmode==='en2ko') prompt = `<div class="quiz-q">${esc(it.en)}</div><div class="center"><button class="btn small" id="qPlay">🔊 듣기</button> <button class="btn small" id="qSlow">🐢 천천히</button></div>`;
+    else if (qmode==='audio2ko') prompt = `<div class="center"><button class="btn primary big-play" id="qPlay">🔊</button><button class="btn small" id="qSlow">🐢 천천히 듣기</button></div>`;
+    else prompt = `<div class="quiz-q">${esc(it.ko)}</div><p class="center muted">알맞은 영어를 골라요</p>`;
+    $('#quizBody').innerHTML = `
+      <div class="muted" style="font-size:14px">${i+1} / ${qs.length} · 점수 ${quiz.score}</div>
+      <div class="progress"><div style="width:${i/qs.length*100}%"></div></div>
+      ${prompt}
+      <div class="choices">${opts.map(o => `<button class="choice" data-id="${o.id}">${esc(showEn ? o.en : o.ko)}</button>`).join('')}</div>
+      <div class="feedback" id="qFb"></div>
+      <div class="center hidden" id="qNextWrap"><button class="btn primary" id="qNext">다음 ▶</button></div>`;
+    const play = () => speak(it.en, 1);
+    $('#qPlay') && ($('#qPlay').onclick = play);
+    $('#qSlow') && ($('#qSlow').onclick = () => speak(it.en, slowRate()));
+    if (qmode==='audio2ko') setTimeout(play, 300);
+    document.querySelectorAll('.choice').forEach(c => c.onclick = () => {
+      if (quiz.answered) return; quiz.answered = true;
+      const ok = c.dataset.id === it.id;
+      document.querySelectorAll('.choice').forEach(x => { if (x.dataset.id===it.id) x.classList.add('right'); });
+      if (!ok){ c.classList.add('wrong'); quiz.wrongs.push(it); } else quiz.score++;
+      mark(it, ok);
+      const fb = $('#qFb'); fb.className = 'feedback ' + (ok?'good':'bad');
+      fb.innerHTML = ok ? '정답! 👏' : `아쉬워요 · 정답: ${esc(it.en)} = ${esc(it.ko)}`;
+      speak(it.en, 1);
+      $('#qNextWrap').classList.remove('hidden'); $('#qNext').focus();
+    });
+    quiz.answered = false;
+  }
+  $('#quizBody').addEventListener('click', e => { if (e.target.id==='qNext'){ quiz.i++; showQ(); } if (e.target.id==='qAgain') startQuiz(); });
+  function quizEnd(){
+    const { score, qs, wrongs } = quiz;
+    $('#quizBody').innerHTML = `
+      <div class="quiz-q">${score} / ${qs.length}</div>
+      <p class="center" style="font-size:20px">${score===qs.length?'🏆 만점이에요!':score>=qs.length*0.7?'👍 잘했어요!':'💪 다시 해 봐요!'}</p>
+      ${wrongs.length?`<p class="muted">틀린 것:</p><ul class="list">${wrongs.map(w=>`<li class="item"><div class="txt"><div class="en">${esc(w.en)}</div><div class="ko">${esc(w.ko)}</div></div></li>`).join('')}</ul>`:''}
+      <div class="center" style="margin-top:12px"><button class="btn primary" id="qAgain">다시 시험 보기</button></div>`;
+  }
+
+  /* ---------- 받아쓰기 ---------- */
+  let spell = null;
+  $('#spellWrongOnly').onchange = startSpell;
+  const norm = s => s.toLowerCase().replace(/[’']/g,"'").replace(/[.,!?;:"]/g,'').replace(/\s+/g,' ').trim();
+  function startSpell(){
+    const qs = pickQs(pool($('#spellWrongOnly').checked, $('#spellGroup').value), +$('#spellCount').value);
+    if (!items.length){ $('#spellBody').innerHTML = `<p class="muted center">먼저 단어를 저장해 주세요.</p>`; return; }
+    if (!qs.length){ $('#spellBody').innerHTML = `<p class="muted center">틀린 단어가 없어요! 🎉</p>`; return; }
+    spell = { qs, i:0, score:0, hints:0, tries:0 }; showSpell();
+  }
+  function hintText(word, n){
+    return word.split('').map((ch,idx) => /[a-z]/i.test(ch) ? (idx < n ? ch : '_') : ch).join('');
+  }
+  function showSpell(){
+    const { qs, i } = spell;
+    if (i >= qs.length) return spellEnd();
+    const it = qs[i]; spell.hints = 0; spell.tries = 0; spell.done = false;
+    $('#spellBody').innerHTML = `
+      <div class="muted" style="font-size:14px">${i+1} / ${qs.length} · 점수 ${spell.score}</div>
+      <div class="progress"><div style="width:${i/qs.length*100}%"></div></div>
+      <div class="center">
+        <button class="btn primary big-play" id="sPlay">🔊</button>
+        <div class="row" style="justify-content:center">
+          <button class="btn small" id="sSlow">🐢 천천히</button>
+          <button class="btn small" id="sHint">💡 힌트</button>
+          ${it.ko?`<button class="btn small" id="sKo">🇰🇷 뜻 보기</button>`:''}
+        </div>
+        <div class="muted hidden" id="sKoText" style="margin-top:8px">${esc(it.ko||'')}</div>
+        <div class="hint hidden" id="sHintText"></div>
+      </div>
+      <input type="text" id="sInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="들은 것을 써 보세요" style="margin-top:14px;text-align:center">
+      <div class="center" style="margin-top:10px"><button class="btn primary" id="sCheck">확인</button></div>
+      <div class="feedback" id="sFb"></div>
+      <div class="center hidden" id="sNextWrap"><button class="btn primary" id="sNext">다음 ▶</button></div>`;
+    const play = () => speak(it.en, 1);
+    $('#sPlay').onclick = () => { play(); $('#sInput').focus(); };
+    $('#sSlow').onclick = () => { speak(it.en, slowRate()); $('#sInput').focus(); };
+    $('#sHint').onclick = () => { spell.hints = Math.min(spell.hints+1, it.en.length); const h=$('#sHintText'); h.classList.remove('hidden'); h.textContent = hintText(it.en, spell.hints); $('#sInput').focus(); };
+    $('#sKo') && ($('#sKo').onclick = () => $('#sKoText').classList.remove('hidden'));
+    $('#sCheck').onclick = check;
+    $('#sInput').onkeydown = e => { if (e.key==='Enter'){ spell.done ? next() : check(); } };
+    $('#sNext').onclick = next;
+    setTimeout(() => { play(); $('#sInput').focus(); }, 300);
+
+    function check(){
+      if (spell.done) return;
+      const val = $('#sInput').value; if (!val.trim()) return;
+      const ok = norm(val) === norm(it.en);
+      const fb = $('#sFb');
+      if (ok){
+        spell.done = true; if (spell.tries===0 && spell.hints===0) spell.score++;
+        mark(it, spell.tries===0);
+        fb.className='feedback good'; fb.innerHTML = spell.tries===0 ? '정답! 🎉' : '맞았어요! 👍';
+        speak(it.en, 1); $('#sNextWrap').classList.remove('hidden');
+      } else {
+        spell.tries++;
+        if (spell.tries >= 2){
+          spell.done = true; mark(it, false);
+          fb.className='feedback bad'; fb.innerHTML = `정답: <span style="font-size:24px">${esc(it.en)}</span><div class="diff" style="font-size:16px;margin-top:4px">내 답: ${diff(val, it.en)}</div>`;
+          speak(it.en, slowRate()); $('#sNextWrap').classList.remove('hidden');
+        } else {
+          fb.className='feedback bad'; fb.innerHTML = `다시 한 번! <div class="diff" style="font-size:18px;margin-top:4px">${diff(val, it.en)}</div><div class="muted" style="font-size:14px">빨간 글자가 틀렸어요</div>`;
+          speak(it.en, slowRate()); $('#sInput').select();
+        }
+      }
+    }
+    function next(){ spell.i++; showSpell(); }
+  }
+  function diff(typed, answer){
+    const a = typed.trim(), b = answer.trim();
+    return a.split('').map((ch,idx) => `<span class="${(b[idx]||'').toLowerCase()===ch.toLowerCase()?'ok':'no'}">${esc(ch)}</span>`).join('');
+  }
+  $('#spellBody').addEventListener('click', e => { if (e.target.id==='sAgain') startSpell(); });
+  function spellEnd(){
+    const { score, qs } = spell;
+    $('#spellBody').innerHTML = `
+      <div class="quiz-q">${score} / ${qs.length}</div>
+      <p class="center muted">힌트 없이 한 번에 맞힌 개수예요</p>
+      <p class="center" style="font-size:20px">${score===qs.length?'🏆 만점이에요!':score>=qs.length*0.7?'👍 잘했어요!':'💪 다시 해 봐요!'}</p>
+      <div class="center"><button class="btn primary" id="sAgain">다시 받아쓰기</button></div>`;
+  }
+
+  items.forEach(i => { if (!i.group) i.group = String(i.id).startsWith('seed') ? '예시' : '기타'; });
+  renderSaved();
+  $('#input').focus();
+
+  /* ---------- GitHub 연결 화면 ---------- */
+  $('#syncBadge').onclick = () => $('#syncCard').classList.toggle('hidden');
+  $('#tokenSave').onclick = async () => {
+    const t = $('#tokenInput').value.trim(); if (!t) return toast('연결 키를 붙여 넣어 주세요');
+    $('#tokenSave').disabled = true;
+    const ok = await Sync.connect(t);
+    $('#tokenSave').disabled = false; $('#tokenInput').value = '';
+    if (ok){ toast('🔗 연결됐어요! 이제 이 컴퓨터에서도 저장돼요'); $('#syncCard').classList.add('hidden'); }
+    else { toast('키가 맞지 않거나 쓰기 권한(Contents: Read and write)이 없어요'); Sync.run(); }
+  };
+  $('#syncNow').onclick = () => Sync.run();
+  $('#tokenClear').onclick = () => { lsSet('eng-practice-gh-token', ''); toast('이 컴퓨터의 연결을 끊었어요'); Sync.run(); };
+  Sync.init();
+})();
+</script>
+</body>
+</html>
