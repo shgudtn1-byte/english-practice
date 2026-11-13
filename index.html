@@ -84,6 +84,20 @@
   .chip{border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:18px;padding:6px 12px;border-radius:10px;cursor:pointer}
   .chip.on{border-color:var(--accent);background:var(--soft)}
   .built{min-height:56px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;padding:10px;margin-top:12px;border:2px dashed var(--line);border-radius:12px}
+  .mic{font-size:44px}
+  .mic.rec{background:var(--bad);color:#fff;animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{50%{transform:scale(1.07);box-shadow:0 0 0 10px var(--bad-soft)}}
+  .live{min-height:24px;font-size:18px;margin-top:6px;color:var(--accent)}
+  .scores{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;margin-top:10px}
+  .score{border:2px solid var(--line);border-radius:12px;padding:10px;text-align:center;font-size:14px}
+  .score b{display:block;font-size:26px}
+  .score.total b{font-size:34px}
+  .score.good{border-color:var(--good);color:var(--good)} .score.mid{border-color:var(--warn);color:var(--warn)} .score.bad{border-color:var(--bad);color:var(--bad)}
+  .w-ok{color:var(--good)} .w-no{color:var(--bad);text-decoration:underline wavy}
+  .contour{margin:10px auto 0;max-width:340px;color:var(--accent);text-align:center}
+  .contour svg{width:100%;height:70px;background:var(--bg);border-radius:10px}
+  .tips{margin:10px 0;padding-left:20px;font-size:15px}
+  .tips li{margin-bottom:4px}
   .addgrid{display:grid;grid-template-columns:1fr auto;gap:8px}
   .addgrid input{font-size:20px}
   .ghead{padding:14px 4px 4px;font-weight:700;color:var(--accent);border-bottom:2px solid var(--line)}
@@ -147,6 +161,7 @@
     <button class="tab" data-tab="quiz">📝 뜻 시험</button>
     <button class="tab" data-tab="spell">✏️ 받아쓰기</button>
     <button class="tab" data-tab="sent">🗣️ 문장 시험</button>
+    <button class="tab" data-tab="speak">🎤 말하기</button>
   </div>
 
   <!-- 듣기 -->
@@ -159,6 +174,7 @@
         <button class="btn" id="playSlower">🐌 아주 천천히</button>
         <button class="btn" id="playWords" title="단어를 하나씩 끊어서 읽어요">👆 한 단어씩</button>
         <button class="btn" id="spellThis" title="소리만 듣고 스펠링 써 보기">✍️ 써 보기</button>
+        <button class="btn" id="speakThis" title="듣고 소리 내어 따라 말하기">🎤 따라 말하기</button>
         <button class="btn good" id="saveBtn" style="margin-left:auto">⭐ 저장</button>
       </div>
       <div class="meaning">
@@ -265,6 +281,17 @@
       <div id="sentBody" style="margin-top:12px"></div>
     </div>
   </section>
+
+  <!-- 소리 내어 말하기 -->
+  <section id="tab-speak" class="hidden">
+    <div class="card">
+      <div class="row"><span class="muted" style="font-size:14px">📚 범위</span><select class="gsel" id="speakGroup"></select>
+        <select class="gsel" id="speakKind"><option value="all">단어+문장</option><option value="sent">문장만</option><option value="word">단어만</option></select>
+        <label class="muted" style="font-size:14px"><input type="checkbox" id="speakHide"> 🙈 영어 가리고 듣기만</label></div>
+      <div id="speakBody" style="margin-top:12px"></div>
+      <p class="muted" style="font-size:12px;margin:12px 0 0">🎤 말소리는 채점을 위해 브라우저의 음성 인식으로 보내져요 (Chrome은 Google 서버). 녹음 파일은 이 화면에서 다시 듣기용으로만 쓰고 저장하지 않아요.</p>
+    </div>
+  </section>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -275,7 +302,7 @@
   const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
   // 동기화할 내용 (사전 정보는 크기가 커서 빼고, 필요할 때 다시 찾음)
-  const slim = i => ({ id: i.id, en: i.en, ko: i.ko || '', group: i.group || '', wrong: i.wrong || 0, right: i.right || 0, added: i.added || 0, updated: i.updated || 0 });
+  const slim = i => ({ id: i.id, en: i.en, ko: i.ko || '', group: i.group || '', wrong: i.wrong || 0, right: i.right || 0, sp: i.sp || 0, added: i.added || 0, updated: i.updated || 0 });
   const sig = i => { const { updated, ...rest } = slim(i); return JSON.stringify(rest); };
   let tomb = {}; try { tomb = JSON.parse(lsGet(TOMB_KEY)) || {}; } catch {}   // 지운 단어 기록: id → 지운 시각
   let snap = {};
@@ -625,7 +652,7 @@
       return `<li class="ghead row">📚 ${esc(g)} <span class="muted" style="font-weight:400;flex:1">· ${its.length}개</span><button class="btn small" data-spellgroup="${esc(g)}">✍️ 이 묶음 받아쓰기</button></li>` + its.map(rowHtml).join('');
     }).join('');
     $('#groupList').innerHTML = groups().map(g => `<option value="${esc(g)}">`).join('');
-    fillGroupSelect($('#quizGroup')); fillGroupSelect($('#spellGroup')); fillGroupSelect($('#sentGroup'));
+    fillGroupSelect($('#quizGroup')); fillGroupSelect($('#spellGroup')); fillGroupSelect($('#sentGroup')); fillGroupSelect($('#speakGroup'));
     const cg = curGroup(), mine = items.filter(i => gname(i) === cg);
     $('#addedTitle').textContent = mine.length ? `"${cg}"에 넣은 단어 ${mine.length}개` : '';
     $('#addedList').innerHTML = mine.map(rowHtml).join('');
@@ -636,6 +663,11 @@
     const en = $('#input').value.trim().replace(/\s+/g, ' ');
     const saved = items.find(i => i.en.toLowerCase() === en.toLowerCase());
     goSpell([saved || { id: 'tmp', en, ko: $('#meaning').value.trim(), wrong: 0, right: 0 }], '방금 들은 말');
+  };
+  $('#speakThis').onclick = () => {
+    const en = $('#input').value.trim().replace(/\s+/g, ' ');
+    const saved = items.find(i => i.en.toLowerCase() === en.toLowerCase());
+    goSpeak([saved || { id: 'tmp', en, ko: $('#meaning').value.trim() }], '따라 말하기');
   };
   $('#savedList').onclick = $('#addedList').onclick = e => {
     const sg = e.target.closest('[data-spellgroup]');
@@ -721,7 +753,9 @@
     if (t.dataset.tab==='add') setTimeout(() => $('#addEn').focus(), 0);
     if (t.dataset.tab==='ko') setTimeout(() => $('#koInput').focus(), 0);
     if (t.dataset.tab==='sent') startSent();
-    ['listen','ko','add','saved','quiz','spell','sent'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
+    stopRec(true);
+    if (t.dataset.tab==='speak') startSpeak();
+    ['listen','ko','add','saved','quiz','spell','sent','speak'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
     speechSynthesis?.cancel();
     if (t.dataset.tab==='quiz') startQuiz();
     if (t.dataset.tab==='spell') startSpell();
@@ -944,6 +978,7 @@
         <button class="btn" data-say="${esc(c.en)}" data-slow="1">🐢 천천히</button>
         <button class="btn" id="koWords">👆 한 단어씩</button>
         <button class="btn" id="koSpell">✍️ 써 보기</button>
+        <button class="btn" id="koSpeak">🎤 말해 보기</button>
         <button class="btn good" id="koSave" style="margin-left:auto">${saved ? '✅ 저장됨' : '⭐ 저장하고 외우기'}</button>
       </div>
       <div class="lvl ${lv.cls}">${lv.text} · ${enWords(c.en).length}단어</div>
@@ -961,6 +996,7 @@
     const c = koCur; if (!c) return;
     const t = e.target.closest('button'); if (!t) return;
     if (t.id === 'koWords') speakWords(c.en);
+    if (t.id === 'koSpeak') goSpeak([items.find(i => i.en.toLowerCase() === c.en.toLowerCase()) || { id: 'tmp', en: c.en, ko: c.ko }], '내가 만든 문장');
     if (t.id === 'koSpell') goSpell([items.find(i => i.en.toLowerCase() === c.en.toLowerCase()) || { id: 'tmp', en: c.en, ko: c.ko, wrong: 0, right: 0 }], '내가 만든 문장');
     if (t.id === 'koSave'){
       const r = addItem(c.en, c.ko);
@@ -1006,7 +1042,7 @@
       $('#sentBody').innerHTML = sentHead() + `
         <div class="sent-ko">${esc(it.ko)}</div>
         <div class="sent-en memo">${w.map((x, k) => hidden.has(k) ? `<button class="blank" data-reveal="${esc(x)}">${'_'.repeat(Math.max(2, x.replace(/[^\w]/g, '').length))}</button>` : esc(x)).join(' ')}</div>
-        <div class="row" style="justify-content:center">${play}</div>
+        <div class="row" style="justify-content:center">${play}<button class="btn small" id="sSpeak">🎤 말해 보기</button></div>
         <div class="row" style="justify-content:center;margin-top:10px">
           ${[0,1,2,3].map(h => `<button class="btn small ${sent.hide === h ? 'primary' : ''}" data-hide="${h}">${['다 보기','조금 가리기','많이 가리기','다 가리기'][h]}</button>`).join('')}
         </div>
@@ -1068,6 +1104,7 @@
     const it = sent.qs[sent.i];
     if (t.dataset.reveal){ t.outerHTML = `<span class="revealed">${esc(t.dataset.reveal)}</span>`; speak(t.dataset.reveal.replace(/[^\w']/g, ''), 0.8); }
     if (t.dataset.hide !== undefined){ sent.hide = +t.dataset.hide; showSent(); }
+    if (t.id === 'sSpeak') return goSpeak([it], '외우기');
     if (t.id === 'sPrev'){ sent.i--; showSent(); }
     if (t.id === 'sNextS'){ sent.i++; showSent(); }
     if (t.dataset.pick !== undefined){ const [p] = sent.pool.splice(+t.dataset.pick, 1); sent.built.push(p); speak(p.w.replace(/[^\w']/g, ''), 1); paintOrder(); }
@@ -1095,6 +1132,226 @@
          <p class="center" style="font-size:20px">${score === qs.length ? '🏆 만점이에요!' : score >= qs.length * 0.7 ? '👍 잘했어요!' : '💪 다시 해 봐요!'}</p>
          <div class="center"><button class="btn primary" id="sAgainS">다시 시험 보기</button></div>`;
   }
+
+  /* ---------- 🎤 소리 내어 말하기: 발음·억양 채점 ---------- */
+  const getSR = () => window.SpeechRecognition || window.webkitSpeechRecognition;
+  let speakS = null, pendingSpeak = null, recState = null;
+  const NUMW = { '0':'zero','1':'one','2':'two','3':'three','4':'four','5':'five','6':'six','7':'seven','8':'eight','9':'nine','10':'ten','11':'eleven','12':'twelve' };
+  const toks = s => sentNorm(s).split(' ').filter(Boolean).map(w => NUMW[w] || w);
+  const clamp01 = x => Math.max(0, Math.min(1, x));
+  const avg = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
+  const pct = (a, p) => { const b = [...a].sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(p * b.length))]; };
+
+  function goSpeak(list, label){
+    list = list.filter(i => i && i.en);
+    if (!list.length) return toast('먼저 영어를 써 주세요');
+    pendingSpeak = { list, label };
+    document.querySelector('[data-tab=speak]').click();
+  }
+  $('#speakGroup').onchange = $('#speakKind').onchange = () => startSpeak();
+  $('#speakHide').onchange = () => speakS && showSpeak();
+
+  function startSpeak(){
+    stopRec(true);
+    const only = pendingSpeak; pendingSpeak = null;
+    if (!getSR() || !navigator.mediaDevices){
+      $('#speakBody').innerHTML = `<p class="center muted">이 브라우저에서는 말하기 채점을 할 수 없어요.<br><b>Chrome</b>이나 <b>Safari</b>에서 열어 주세요.</p>`; return;
+    }
+    let qs;
+    if (only) qs = only.list;
+    else {
+      const kind = $('#speakKind').value;
+      const list = pool(false, $('#speakGroup').value).filter(i => kind === 'all' || (kind === 'sent') === /\s/.test(i.en.trim()));
+      if (!list.length){ $('#speakBody').innerHTML = `<p class="center muted">이 범위에 저장한 단어나 문장이 없어요.</p>`; return; }
+      qs = shuffle([...list].sort((a, b) => (a.sp || 0) - (b.sp || 0)).slice(0, 10));   // 점수가 낮은 것부터 연습
+    }
+    speakS = { qs, i: 0, label: only && only.label, scores: {} };
+    showSpeak();
+  }
+
+  function showSpeak(){
+    const { qs, i } = speakS;
+    if (i >= qs.length) return speakEnd();
+    const it = qs[i], res = speakS.scores[it.id], hide = $('#speakHide').checked && !res;
+    $('#speakBody').innerHTML = `
+      <div class="muted" style="font-size:14px">${speakS.label ? `🎤 ${esc(speakS.label)} · ` : ''}${i+1} / ${qs.length}${it.sp ? ` · ⭐ 최고 ${it.sp}%` : ''}</div>
+      <div class="progress"><div style="width:${i/qs.length*100}%"></div></div>
+      ${it.ko ? `<div class="sent-ko">${esc(it.ko)}</div>` : ''}
+      <div class="sent-en center">${hide ? '<span class="muted" style="font-size:18px">🙈 영어를 가렸어요 – 잘 듣고 따라 말해요</span>' : res ? res.wordsHtml : esc(it.en)}</div>
+      <div class="row" style="justify-content:center">
+        <button class="btn small" data-say="${esc(it.en)}">🔊 듣기</button>
+        <button class="btn small" data-say="${esc(it.en)}" data-slow="1">🐢 천천히</button>
+        ${/\s/.test(it.en.trim()) ? '<button class="btn small" id="spWords">👆 한 단어씩</button>' : ''}
+      </div>
+      <div class="center" style="margin-top:14px">
+        <button class="btn primary big-play mic" id="spMic" title="눌러서 말하기">🎤</button>
+        <div class="muted" id="spState">${res ? '다시 말해 보려면 🎤를 눌러요' : '먼저 🔊로 듣고, 🎤를 누른 다음 따라 말해 보세요'}</div>
+        <div class="live" id="spLive"></div>
+      </div>
+      <div id="spResult">${res ? resultHtml(it, res) : ''}</div>
+      <div class="row" style="justify-content:center;margin-top:12px"><button class="btn" id="spPrev" ${i ? '' : 'disabled'}>◀ 이전</button><button class="btn primary" id="spNext">다음 ▶</button></div>`;
+  }
+
+  async function startRec(it){
+    if (recState) return stopRec();
+    speechSynthesis.cancel();
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+    catch { $('#spState').textContent = '⚠️ 마이크를 쓸 수 없어요. 주소창 옆 마이크 권한을 "허용"으로 바꿔 주세요.'; return; }
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const an = ac.createAnalyser(); an.fftSize = 2048; ac.createMediaStreamSource(stream).connect(an);
+    const buf = new Float32Array(an.fftSize), frames = [], t0 = performance.now();
+    const st = recState = { it, stream, ac, frames, chunks: [], alts: [], err: null, done: false };
+    st.timer = setInterval(() => { an.getFloatTimeDomainData(buf); frames.push({ t: (performance.now() - t0) / 1000, ...detectPitch(buf, ac.sampleRate) }); }, 30);
+    try { st.mr = new MediaRecorder(stream); st.mr.ondataavailable = e => st.chunks.push(e.data); st.mr.start(); } catch {}
+    const rec = st.rec = new (getSR())();
+    rec.lang = 'en-US'; rec.interimResults = true; rec.maxAlternatives = 5; rec.continuous = false;
+    rec.onresult = e => {
+      let live = '', finals = [], last = null;
+      for (const r of e.results){ live += r[0].transcript + ' '; if (r.isFinal){ if (last) finals.push(last[0].transcript); last = r; } }
+      if (last) st.alts = [...last].map(a => ({ t: (finals.join(' ') + ' ' + a.transcript).trim(), c: a.confidence }));
+      const el = $('#spLive'); if (el) el.textContent = live.trim();
+    };
+    rec.onerror = e => { st.err = e.error; };
+    rec.onend = () => finishRec(st);
+    try { rec.start(); } catch { st.err = 'start'; return finishRec(st); }
+    st.failsafe = setTimeout(() => { try { rec.stop(); } catch {} }, 15000);
+    $('#spMic').classList.add('rec'); $('#spMic').textContent = '⏹';
+    $('#spState').textContent = '듣고 있어요… 다 말하면 ⏹를 누르거나 잠깐 기다려요';
+  }
+  function stopRec(silent){
+    const st = recState; if (!st) return;
+    if (silent) st.silent = true;
+    try { st.rec.stop(); } catch { finishRec(st); }
+    if (silent) setTimeout(() => finishRec(st), 500);
+  }
+  function finishRec(st){
+    if (st.done) return; st.done = true; if (recState === st) recState = null;
+    clearInterval(st.timer); clearTimeout(st.failsafe);
+    const after = () => {
+      st.stream.getTracks().forEach(t => t.stop()); st.ac.close().catch(() => {});
+      if (st.silent || !speakS || speakS.qs[speakS.i] !== st.it || !$('#spMic')) return;
+      $('#spMic').classList.remove('rec'); $('#spMic').textContent = '🎤';
+      if (st.err === 'not-allowed' || st.err === 'service-not-allowed') return $('#spState').textContent = '⚠️ 마이크 권한을 허용해 주세요';
+      if (st.err === 'network') return $('#spState').textContent = '⚠️ 음성 인식에 인터넷 연결이 필요해요';
+      if (!st.alts.length) return $('#spState').textContent = '🤔 잘 안 들렸어요. 마이크 가까이에서 조금 더 크게 말해 볼까요?';
+      const res = scoreSpeech(st.it.en, st.alts, st.frames);
+      res.audio = st.audioUrl;
+      speakS.scores[st.it.id] = res;
+      if (items.includes(st.it) && res.total > (st.it.sp || 0)){ st.it.sp = res.total; store.save(items); }
+      showSpeak();
+    };
+    if (st.mr && st.mr.state !== 'inactive'){
+      st.mr.onstop = () => { try { st.audioUrl = URL.createObjectURL(new Blob(st.chunks, { type: st.mr.mimeType || 'audio/webm' })); } catch {} after(); };
+      st.mr.stop();
+    } else after();
+  }
+
+  // 목소리 높이(기본 주파수) 찾기: 자기상관 방식
+  function detectPitch(buf, sr){
+    const n = buf.length >> 1, x = new Float32Array(n), fs = sr / 2;
+    for (let k = 0; k < n; k++) x[k] = buf[2 * k];
+    let e = 0; for (let k = 0; k < n; k++) e += x[k] * x[k];
+    const rms = Math.sqrt(e / n);
+    if (rms < 0.01) return { rms, f0: 0 };
+    const minLag = Math.floor(fs / 600), maxLag = Math.min(n - 2, Math.floor(fs / 70)), r = new Float32Array(maxLag + 2);
+    let best = 0;
+    for (let lag = minLag; lag <= maxLag + 1; lag++){ let s = 0; for (let k = 0; k < n - lag; k++) s += x[k] * x[k + lag]; r[lag] = s / e; if (lag <= maxLag && r[lag] > best) best = r[lag]; }
+    if (best < 0.45) return { rms, f0: 0 };
+    for (let lag = minLag + 1; lag <= maxLag; lag++)   // 가장 높은 봉우리의 90% 이상인 첫 봉우리 = 옥타브 오류 줄이기
+      if (r[lag] >= 0.9 * best && r[lag] >= r[lag - 1] && r[lag] >= r[lag + 1]) return { rms, f0: fs / lag };
+    return { rms, f0: 0 };
+  }
+
+  function scoreSpeech(target, alts, frames){
+    // 1) 발음: 컴퓨터가 알아들은 말과 정답 단어를 순서대로 맞춰 보기
+    const words = enWords(target), owner = [], tt = [];
+    words.forEach((w, k) => toks(w).forEach(t => { tt.push(t); owner.push(k); }));
+    const align = (a, b) => {
+      const m = a.length, n = b.length, L = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+      for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--) L[i][j] = a[i] === b[j] ? L[i+1][j+1] + 1 : Math.max(L[i+1][j], L[i][j+1]);
+      const hit = new Array(m).fill(false); let i = 0, j = 0;
+      while (i < m && j < n){ if (a[i] === b[j]){ hit[i] = true; i++; j++; } else if (L[i+1][j] >= L[i][j+1]) i++; else j++; }
+      return { hit, lcs: L[0][0] };
+    };
+    let bestAlt = null;
+    for (const a of alts){
+      const ht = toks(a.t), al = align(tt, ht);
+      const R = al.lcs / (tt.length || 1), P = al.lcs / (ht.length || 1), c = a.c > 0 ? a.c : 1;
+      const s = (0.8 * R + 0.2 * P) * (0.85 + 0.15 * c);
+      if (!bestAlt || s > bestAlt.s) bestAlt = { s, al, text: a.t };
+    }
+    const pron = Math.round(100 * bestAlt.s);
+    const wordOk = words.map((_, k) => owner.every((o, ti) => o !== k || bestAlt.al.hit[ti]));
+    const wordsHtml = words.map((w, k) => `<span class="${wordOk[k] ? 'w-ok' : 'w-no'}">${esc(w)}</span>`).join(' ');
+    const missed = words.filter((_, k) => !wordOk[k]).map(w => w.replace(/[^\w']/g, ''));
+
+    // 2) 억양: 목소리 높이의 움직임, 문장 끝 올림/내림, 말하는 빠르기
+    const tips = []; let inton = null, svg = '';
+    const isQ = /\?\s*$/.test(target) && /^(do|does|did|can|could|will|would|is|are|was|were|am|have|has|had|should|may|shall)\b/i.test(target.trim());
+    const expect = isQ ? 'rise' : 'fall';
+    let voiced = frames.filter(f => f.f0 > 0);
+    if (voiced.length >= 6){
+      const med = pct(voiced.map(f => f.f0), 0.5);
+      const pts = voiced.map(f => ({ t: f.t, s: 12 * Math.log2(f.f0 / med) })).filter(p => Math.abs(p.s) < 12);
+      const sm = pts.map((p, k) => ({ t: p.t, s: avg(pts.slice(Math.max(0, k - 2), k + 3).map(q => q.s)) }));   // 살짝 매끄럽게
+      const range = pct(sm.map(p => p.s), 0.9) - pct(sm.map(p => p.s), 0.1);
+      const dur = Math.max(0.3, sm[sm.length - 1].t - sm[0].t), n = sm.length;
+      const tail = avg(sm.slice(Math.floor(n * 0.75)).map(p => p.s)), mid = avg(sm.slice(Math.floor(n * 0.3), Math.floor(n * 0.7)).map(p => p.s));
+      const diff = tail - mid, dir = diff > 1 ? 'rise' : diff < -1 ? 'fall' : 'flat';
+      const endS = dir === expect ? 1 : dir === 'flat' ? 0.5 : 0.15;
+      const varS = clamp01((range - 1.5) / 4);
+      const wps = words.length / dur;
+      const speedS = words.length < 2 ? 1 : wps < 1.3 ? clamp01(wps / 1.3) : wps > 3.4 ? clamp01(1 - (wps - 3.4) / 2) : 1;
+      inton = Math.round(100 * (words.length < 2 ? 0.4 * endS + 0.6 * varS : 0.45 * endS + 0.3 * varS + 0.25 * speedS));
+      if (dir !== expect) tips.push(expect === 'rise' ? '❓ 질문이니까 문장 끝을 <b>↗ 올려서</b> 말해 보세요.' : '🔚 문장 끝을 <b>↘ 내려서</b> 말해 보세요.');
+      if (varS < 0.5) tips.push('🎵 목소리가 너무 일정해요. 중요한 단어를 <b>더 힘주어</b> 말해 보세요.');
+      if (words.length >= 2 && wps < 1.3) tips.push('🐇 단어를 끊지 말고 조금 더 <b>이어서</b> 말해 보세요.');
+      if (wps > 3.4) tips.push('🐢 조금 더 <b>천천히, 또박또박</b> 말해 보세요.');
+      // 억양 그래프
+      const t0 = sm[0].t, W = 300, H = 70, X = t => 6 + (t - t0) / dur * (W - 12), Y = s => Math.max(4, Math.min(H - 4, H / 2 - s * 3));
+      svg = `<div class="contour"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${sm.map(p => X(p.t).toFixed(1) + ',' + Y(p.s).toFixed(1)).join(' ')}" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/></svg>
+        <div class="muted" style="font-size:13px">🎵 내 억양: 끝이 ${dir === 'rise' ? '↗ 올라가요' : dir === 'fall' ? '↘ 내려가요' : '→ 평평해요'} · 이 문장은 끝을 ${expect === 'rise' ? '↗ 올려요' : '↘ 내려요'}</div></div>`;
+    } else tips.push('🔈 목소리가 작아서 억양은 재지 못했어요. 조금 더 크게 말해 보세요.');
+    if (missed.length) tips.unshift(`🗣️ 빨간 단어를 다시 들어 보고 연습해요: <b>${missed.map(esc).join(', ')}</b>`);
+    const total = inton == null ? pron : Math.round(0.7 * pron + 0.3 * inton);
+    const praise = total >= 90 ? '🏆 원어민 같아요!' : total >= 75 ? '👍 아주 잘했어요!' : total >= 50 ? '💪 거의 다 왔어요!' : '🔁 잘 듣고 다시 해 봐요!';
+    if (!tips.length) tips.push('✨ 발음도 억양도 좋아요. 영어를 가리고(🙈) 도전해 보세요!');
+    return { pron, inton, total, praise, heard: bestAlt.text, wordsHtml, tips, svg };
+  }
+  function resultHtml(it, r){
+    const cls = v => v == null ? '' : v >= 80 ? 'good' : v >= 50 ? 'mid' : 'bad';
+    return `
+      <div class="scores">
+        <div class="score total ${cls(r.total)}"><div>종합</div><b>${r.total}%</b></div>
+        <div class="score ${cls(r.pron)}"><div>🗣️ 발음</div><b>${r.pron}%</b></div>
+        <div class="score ${cls(r.inton)}"><div>🎵 억양</div><b>${r.inton == null ? '–' : r.inton + '%'}</b></div>
+      </div>
+      <div class="center" style="font-size:20px;font-weight:700;margin:10px 0 4px">${r.praise}</div>
+      <div class="muted center" style="font-size:14px">🤖 컴퓨터가 알아들은 말: “${esc(r.heard)}”</div>
+      ${r.svg}
+      <ul class="tips">${r.tips.map(t => `<li>${t}</li>`).join('')}</ul>
+      <div class="row" style="justify-content:center">
+        ${r.audio ? '<button class="btn small" id="spMine">▶ 내 목소리 듣기</button>' : ''}
+        <button class="btn small" data-say="${esc(it.en)}">🔊 원래 발음 듣기</button>
+      </div>`;
+  }
+  function speakEnd(){
+    const done = speakS.qs.filter(q => speakS.scores[q.id]), mean = Math.round(avg(done.map(q => speakS.scores[q.id].total)));
+    $('#speakBody').innerHTML = `
+      <div class="quiz-q">${done.length ? `평균 ${mean}%` : '끝!'}</div>
+      <p class="center muted">${done.length}개를 말해 봤어요${done.length < speakS.qs.length ? ` (건너뛴 것 ${speakS.qs.length - done.length}개)` : ''}</p>
+      <div class="center"><button class="btn primary" id="spAgain">다시 연습하기</button></div>`;
+  }
+  $('#speakBody').addEventListener('click', e => {
+    const t = e.target.closest('button'); if (!t || !speakS) return;
+    const it = speakS.qs[speakS.i];
+    if (t.id === 'spMic') startRec(it);
+    if (t.id === 'spWords') speakWords(it.en);
+    if (t.id === 'spPrev' || t.id === 'spNext'){ stopRec(true); speakS.i += t.id === 'spNext' ? 1 : -1; showSpeak(); }
+    if (t.id === 'spMine'){ const r = speakS.scores[it.id]; if (r && r.audio){ speechSynthesis.cancel(); new Audio(r.audio).play(); } }
+    if (t.id === 'spAgain') startSpeak();
+  });
 
   items.forEach(i => { if (!i.group) i.group = String(i.id).startsWith('seed') ? '예시' : '기타'; });
   renderSaved();
