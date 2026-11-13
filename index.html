@@ -72,6 +72,18 @@
   #syncBadge[data-kind="bad"]{color:var(--bad);border-color:var(--bad)}
   code{font-size:.9em;background:var(--soft);padding:1px 5px;border-radius:5px}
   a{color:var(--accent)}
+  .sent-en{font-size:26px;font-weight:700;line-height:1.35;margin:8px 0 12px;word-break:break-word}
+  .sent-ko{font-size:22px;font-weight:700;text-align:center;margin:10px 0 8px}
+  .sent-en.memo{text-align:center;font-size:24px}
+  .blank{border:0;border-bottom:3px solid var(--accent);background:var(--soft);color:var(--accent);font:inherit;font-size:20px;padding:0 6px;border-radius:6px;cursor:pointer;letter-spacing:2px}
+  .revealed{color:var(--accent)}
+  .lvl{display:inline-block;margin-top:10px;font-size:14px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--soft)}
+  .lvl.easy{background:var(--good-soft);color:var(--good)} .lvl.hard{background:var(--bad-soft);color:var(--bad)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chips.center{justify-content:center}
+  .chip{border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:18px;padding:6px 12px;border-radius:10px;cursor:pointer}
+  .chip.on{border-color:var(--accent);background:var(--soft)}
+  .built{min-height:56px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;padding:10px;margin-top:12px;border:2px dashed var(--line);border-radius:12px}
   .addgrid{display:grid;grid-template-columns:1fr auto;gap:8px}
   .addgrid input{font-size:20px}
   .ghead{padding:14px 4px 4px;font-weight:700;color:var(--accent);border-bottom:2px solid var(--line)}
@@ -129,10 +141,12 @@
 
   <div class="tabs">
     <button class="tab on" data-tab="listen">🔊 듣기</button>
+    <button class="tab" data-tab="ko">🇰🇷 한국말로</button>
     <button class="tab" data-tab="add">✍️ 배운 단어 넣기</button>
     <button class="tab" data-tab="saved">📒 저장한 단어 <span id="savedCount"></span></button>
     <button class="tab" data-tab="quiz">📝 뜻 시험</button>
     <button class="tab" data-tab="spell">✏️ 받아쓰기</button>
+    <button class="tab" data-tab="sent">🗣️ 문장 시험</button>
   </div>
 
   <!-- 듣기 -->
@@ -159,6 +173,17 @@
       </div>
       <div class="speed" style="margin-top:10px">🐢 천천히 속도 <input type="range" id="slowRate" min="0.3" max="0.9" step="0.05" value="0.6"><span id="slowRateVal">0.6</span></div>
     </div>
+  </section>
+
+  <!-- 한국말 → 영어 -->
+  <section id="tab-ko" class="hidden">
+    <div class="card">
+      <label class="muted" style="font-size:14px">🇰🇷 영어로 하고 싶은 말을 한국말로 써 보세요</label>
+      <textarea id="koInput" style="margin-top:6px" placeholder="예: 나는 오늘 학교에서 친구랑 축구를 했어"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn primary" id="koGo">🇺🇸 영어로 바꾸기</button><span class="muted" id="koStatus"></span></div>
+      <p class="muted" style="font-size:13px;margin:8px 0 0">💡 짧고 쉬운 말로 쓰면 더 쉬운 영어가 나와요. 길면 두 문장으로 나눠 보세요.</p>
+    </div>
+    <div class="card hidden" id="koResult"></div>
   </section>
 
   <!-- 배운 단어 넣기 -->
@@ -223,6 +248,21 @@
       <select class="gsel qcount" id="spellCount"><option value="10">10문제</option><option value="20">20문제</option><option value="30">30문제</option><option value="0">모두</option></select>
       <label class="muted" style="font-size:14px"><input type="checkbox" id="spellWrongOnly"> 틀린 것만 다시 풀기</label></div>
       <div id="spellBody" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- 문장 외우기·시험 -->
+  <section id="tab-sent" class="hidden">
+    <div class="card">
+      <div class="seg">
+        <button class="btn small" data-smode="memo">🧠 외우기</button>
+        <button class="btn small" data-smode="order">🧩 순서 맞추기</button>
+        <button class="btn small" data-smode="write">⌨️ 영어로 쓰기</button>
+      </div>
+      <div class="row"><span class="muted" style="font-size:14px">📚 범위</span><select class="gsel" id="sentGroup"></select>
+      <select class="gsel qcount" id="sentCount"><option value="10">10문제</option><option value="20">20문제</option><option value="0">모두</option></select>
+      <label class="muted" style="font-size:14px"><input type="checkbox" id="sentWrongOnly"> 틀린 것만</label></div>
+      <div id="sentBody" style="margin-top:12px"></div>
     </div>
   </section>
 </div>
@@ -585,7 +625,7 @@
       return `<li class="ghead row">📚 ${esc(g)} <span class="muted" style="font-weight:400;flex:1">· ${its.length}개</span><button class="btn small" data-spellgroup="${esc(g)}">✍️ 이 묶음 받아쓰기</button></li>` + its.map(rowHtml).join('');
     }).join('');
     $('#groupList').innerHTML = groups().map(g => `<option value="${esc(g)}">`).join('');
-    fillGroupSelect($('#quizGroup')); fillGroupSelect($('#spellGroup'));
+    fillGroupSelect($('#quizGroup')); fillGroupSelect($('#spellGroup')); fillGroupSelect($('#sentGroup'));
     const cg = curGroup(), mine = items.filter(i => gname(i) === cg);
     $('#addedTitle').textContent = mine.length ? `"${cg}"에 넣은 단어 ${mine.length}개` : '';
     $('#addedList').innerHTML = mine.map(rowHtml).join('');
@@ -679,7 +719,9 @@
   document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x===t));
     if (t.dataset.tab==='add') setTimeout(() => $('#addEn').focus(), 0);
-    ['listen','add','saved','quiz','spell'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
+    if (t.dataset.tab==='ko') setTimeout(() => $('#koInput').focus(), 0);
+    if (t.dataset.tab==='sent') startSent();
+    ['listen','ko','add','saved','quiz','spell','sent'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
     speechSynthesis?.cancel();
     if (t.dataset.tab==='quiz') startQuiz();
     if (t.dataset.tab==='spell') startSpell();
@@ -856,6 +898,202 @@
       <p class="center" style="font-size:20px">${score===qs.length?'🏆 만점이에요!':score>=qs.length*0.7?'👍 잘했어요!':'💪 다시 해 봐요!'}</p>
       <div class="row" style="justify-content:center"><button class="btn primary" id="sAgain">${spell.only ? '같은 단어 다시 쓰기' : '다시 받아쓰기'}</button>
       ${spell.only ? '<button class="btn" id="sAll">전체 단어 받아쓰기</button>' : ''}</div>`;
+  }
+
+  /* ---------- 한국말 → 영어 ---------- */
+  const enWords = s => s.trim().split(/\s+/).filter(Boolean);
+  function levelOf(en){
+    const w = enWords(en), long = w.filter(x => x.replace(/[^a-z]/gi, '').length > 7).length;
+    if (w.length <= 10 && long <= 1) return { cls: 'easy', text: '🟢 쉬워요' };
+    if (w.length <= 15 && long <= 3) return { cls: 'mid', text: '🟡 보통이에요' };
+    return { cls: 'hard', text: '🔴 길고 어려워요 – 한국말을 두 문장으로 나눠 보세요' };
+  }
+  async function koToEn(ko){
+    const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=en&dt=t&dt=at&dj=1&q=' + encodeURIComponent(ko));
+    if (!r.ok) throw new Error('ko2en ' + r.status);
+    const j = await r.json();
+    const main = (j.sentences || []).map(s => s.trans || '').join('').trim();
+    // 문장이 하나일 때만 "다르게 말하기"를 보여줌
+    const alts = (j.alternative_translations || []).length === 1
+      ? j.alternative_translations[0].alternative.map(a => a.word_postproc.replace(/’/g, "'")).filter(a => a && a.toLowerCase() !== main.toLowerCase())
+      : [];
+    return { main: main.replace(/’/g, "'"), alts: [...new Set(alts)].slice(0, 2) };
+  }
+  let koCur = null, koSeq = 0;
+  async function runKo(){
+    const ko = $('#koInput').value.trim(); if (!ko) return;
+    const seq = ++koSeq; $('#koStatus').textContent = '바꾸는 중…';
+    try {
+      const t = await koToEn(ko); if (seq !== koSeq) return;
+      koCur = { ko, en: t.main, alts: t.alts };
+      renderKo(); $('#koStatus').textContent = '';
+      speak(koCur.en, 0.9);
+      const [back] = await koLines([koCur.en]);   // 다시 한국말로 바꿔서 뜻이 맞는지 확인
+      if (seq === koSeq && back){ koCur.back = back; const b = $('#koBack'); if (b) b.innerHTML = `🔁 다시 한국말로: <b>${esc(back)}</b>`; }
+    } catch { if (seq === koSeq) $('#koStatus').textContent = '⚠️ 인터넷 연결을 확인해 주세요'; }
+  }
+  function renderKo(){
+    const c = koCur, lv = levelOf(c.en);
+    const saved = items.some(i => i.en.toLowerCase() === c.en.toLowerCase());
+    $('#koResult').classList.remove('hidden');
+    $('#koResult').innerHTML = `
+      <div class="muted" style="font-size:14px">🇰🇷 ${esc(c.ko)}</div>
+      <div class="sent-en">${esc(c.en)}</div>
+      <div class="row">
+        <button class="btn primary" data-say="${esc(c.en)}">🔊 듣기</button>
+        <button class="btn" data-say="${esc(c.en)}" data-slow="1">🐢 천천히</button>
+        <button class="btn" id="koWords">👆 한 단어씩</button>
+        <button class="btn" id="koSpell">✍️ 써 보기</button>
+        <button class="btn good" id="koSave" style="margin-left:auto">${saved ? '✅ 저장됨' : '⭐ 저장하고 외우기'}</button>
+      </div>
+      <div class="lvl ${lv.cls}">${lv.text} · ${enWords(c.en).length}단어</div>
+      <div class="muted" id="koBack" style="font-size:14px;margin-top:6px">${c.back ? `🔁 다시 한국말로: <b>${esc(c.back)}</b>` : ''}</div>
+      <div class="muted" style="font-size:13px;margin-top:12px">👆 단어를 누르면 발음과 뜻이 나와요</div>
+      <div class="chips">${enWords(c.en).map(w => `<button class="chip" data-word="${esc(w.replace(/^[^\w']+|[^\w']+$/g, ''))}">${esc(w)}</button>`).join('')}</div>
+      <div id="koWordInfo" class="muted" style="min-height:22px;margin-top:6px"></div>
+      ${c.alts.length ? `<div class="ex-title">🔀 이렇게도 말할 수 있어요</div>` + c.alts.map(a => `
+        <div class="ex"><button class="btn small" data-say="${esc(a)}">🔊</button><div style="flex:1">${esc(a)}</div><button class="btn small" data-alt="${esc(a)}">이걸로</button></div>`).join('') : ''}
+      <div class="src">번역: Google 번역</div>`;
+  }
+  $('#koGo').onclick = runKo;
+  $('#koInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); runKo(); } });
+  $('#koResult').addEventListener('click', async e => {
+    const c = koCur; if (!c) return;
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.id === 'koWords') speakWords(c.en);
+    if (t.id === 'koSpell') goSpell([items.find(i => i.en.toLowerCase() === c.en.toLowerCase()) || { id: 'tmp', en: c.en, ko: c.ko, wrong: 0, right: 0 }], '내가 만든 문장');
+    if (t.id === 'koSave'){
+      const r = addItem(c.en, c.ko);
+      store.save(items); renderSaved(); renderKo();
+      toast(r === 'added' ? `⭐ 저장했어요! "🗣️ 문장 시험"에서 외워 보세요` : '이미 저장된 문장이에요');
+    }
+    if (t.dataset.alt){ c.alts = [c.en, ...c.alts.filter(a => a !== t.dataset.alt)]; c.en = t.dataset.alt; c.back = ''; renderKo(); speak(c.en, 0.9);
+      const [back] = await koLines([c.en]); if (back && koCur === c){ c.back = back; renderKo(); } }
+    if (t.dataset.word){
+      const w = t.dataset.word; speak(w, 0.8);
+      $('#koWordInfo').textContent = `${w} : …`;
+      try { const d = await lookup(w); if ($('#koWordInfo')) $('#koWordInfo').innerHTML = `<b>${esc(w)}</b> : ${esc(d.ko || '?')}`; } catch {}
+    }
+  });
+
+  /* ---------- 문장 외우기·시험 ---------- */
+  let smode = 'memo', sent = null;
+  const isSentence = i => /\s/.test(i.en.trim()) && i.ko;
+  document.querySelectorAll('[data-smode]').forEach(b => b.onclick = () => { smode = b.dataset.smode; startSent(); });
+  $('#sentGroup').onchange = $('#sentCount').onchange = $('#sentWrongOnly').onchange = () => startSent();
+  // 줄임말을 풀어서 비교 (I'm = I am)
+  const CONTR = { "i'm":'i am', "you're":'you are', "we're":'we are', "they're":'they are', "he's":'he is', "she's":'she is', "it's":'it is', "that's":'that is', "what's":'what is', "there's":'there is', "let's":'let us', "can't":'cannot', "won't":'will not', "don't":'do not', "doesn't":'does not', "didn't":'did not', "isn't":'is not', "aren't":'are not', "wasn't":'was not', "i'll":'i will', "you'll":'you will', "i've":'i have', "i'd":'i would' };
+  const sentNorm = s => norm(s).split(' ').map(w => CONTR[w] || w).join(' ').replace(/\bcan not\b/g, 'cannot');
+  function startSent(){
+    document.querySelectorAll('[data-smode]').forEach(b => b.classList.toggle('primary', b.dataset.smode === smode));
+    const all = items.filter(isSentence);
+    if (!all.length){ $('#sentBody').innerHTML = `<p class="muted center">아직 저장한 문장이 없어요.<br><b>🇰🇷 한국말로</b> 탭에서 하고 싶은 말을 영어로 바꾸고 <b>⭐ 저장</b>을 눌러 보세요.</p>`; return; }
+    const qs = pickQs(pool($('#sentWrongOnly').checked, $('#sentGroup').value).filter(isSentence), +$('#sentCount').value);
+    if (!qs.length){ $('#sentBody').innerHTML = `<p class="muted center">이 범위에는 문장이 없거나, 틀린 문장이 없어요! 🎉</p>`; return; }
+    sent = { qs, i: 0, score: 0, hide: 0 }; showSent();
+  }
+  function sentHead(){ const { i, qs } = sent; return `<div class="muted" style="font-size:14px">${i+1} / ${qs.length}${smode === 'memo' ? '' : ` · 점수 ${sent.score}`}</div><div class="progress"><div style="width:${i/qs.length*100}%"></div></div>`; }
+  function showSent(){
+    const { qs, i } = sent;
+    if (i >= qs.length) return sentEnd();
+    const it = qs[i]; sent.tries = 0; sent.done = false;
+    const play = `<button class="btn small" data-say="${esc(it.en)}">🔊 듣기</button><button class="btn small" data-say="${esc(it.en)}" data-slow="1">🐢 천천히</button>`;
+    if (smode === 'memo'){
+      // 외우기: 단계마다 영어 단어를 더 많이 가려요
+      const w = enWords(it.en), n = w.length;
+      if (!sent.hideIdx || sent.hideFor !== it.id){ sent.hideFor = it.id; sent.hideIdx = shuffle(w.map((_, k) => k)); sent.hide = 0; }
+      const hidden = new Set(sent.hideIdx.slice(0, Math.round(n * sent.hide / 3)));
+      $('#sentBody').innerHTML = sentHead() + `
+        <div class="sent-ko">${esc(it.ko)}</div>
+        <div class="sent-en memo">${w.map((x, k) => hidden.has(k) ? `<button class="blank" data-reveal="${esc(x)}">${'_'.repeat(Math.max(2, x.replace(/[^\w]/g, '').length))}</button>` : esc(x)).join(' ')}</div>
+        <div class="row" style="justify-content:center">${play}</div>
+        <div class="row" style="justify-content:center;margin-top:10px">
+          ${[0,1,2,3].map(h => `<button class="btn small ${sent.hide === h ? 'primary' : ''}" data-hide="${h}">${['다 보기','조금 가리기','많이 가리기','다 가리기'][h]}</button>`).join('')}
+        </div>
+        <p class="muted center" style="font-size:13px">한국말을 보고 영어로 소리 내어 말해 보세요. 빈칸을 누르면 단어가 보여요.</p>
+        <div class="row" style="justify-content:center"><button class="btn" id="sPrev" ${i ? '' : 'disabled'}>◀ 이전</button><button class="btn primary" id="sNextS">다음 ▶</button></div>`;
+      return;
+    }
+    if (smode === 'order'){
+      sent.built = []; sent.pool = shuffle(enWords(it.en).map((w, k) => ({ w, k })));
+      if (sent.pool.length > 1 && sent.pool.every((p, k) => p.k === k)) sent.pool.reverse();
+    }
+    $('#sentBody').innerHTML = sentHead() + `
+      <div class="sent-ko">${esc(it.ko)}</div>
+      <div class="row" style="justify-content:center">${play}</div>
+      ${smode === 'order'
+        ? `<div class="built" id="sBuilt"></div><div class="chips center" id="sPool"></div>`
+        : `<input type="text" id="sWrite" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="영어 문장을 써 보세요" style="margin-top:14px">`}
+      <div class="row" style="justify-content:center;margin-top:10px"><button class="btn small" id="sHintS">💡 힌트</button><button class="btn primary" id="sCheckS">확인</button></div>
+      <div class="feedback" id="sFbS"></div>
+      <div class="center hidden" id="sNextWrapS"><button class="btn primary" id="sNextS">다음 ▶</button></div>`;
+    if (smode === 'order') paintOrder(); else setTimeout(() => $('#sWrite') && $('#sWrite').focus(), 0);
+  }
+  function paintOrder(){
+    $('#sBuilt').innerHTML = sent.built.length ? sent.built.map((p, k) => `<button class="chip on" data-back="${k}">${esc(p.w)}</button>`).join('') : '<span class="muted">아래 단어를 순서대로 눌러요</span>';
+    $('#sPool').innerHTML = sent.pool.map((p, k) => `<button class="chip" data-pick="${k}">${esc(p.w)}</button>`).join('');
+  }
+  function wordDiff(typed, answer){
+    const a = sentNorm(typed).split(' '), b = sentNorm(answer).split(' ');
+    return a.map((w, k) => `<span class="${w === b[k] ? 'ok' : 'no'}">${esc(w)}</span>`).join(' ');
+  }
+  function checkSent(){
+    if (sent.done) return;
+    const it = sent.qs[sent.i];
+    const typed = smode === 'order' ? sent.built.map(p => p.w).join(' ') : ($('#sWrite').value || '');
+    if (!typed.trim()) return;
+    if (smode === 'order' && sent.pool.length) return toast('단어를 모두 골라 주세요');
+    const ok = sentNorm(typed) === sentNorm(it.en);
+    const fb = $('#sFbS');
+    if (ok){
+      sent.done = true; if (sent.tries === 0) sent.score++; mark(it, sent.tries === 0);
+      fb.className = 'feedback good'; fb.innerHTML = sent.tries === 0 ? '정답! 🎉' : '맞았어요! 👍';
+      speak(it.en, 1); $('#sNextWrapS').classList.remove('hidden');
+    } else if (++sent.tries >= 2){
+      sent.done = true; mark(it, false);
+      fb.className = 'feedback bad'; fb.innerHTML = `정답: <div class="sent-en" style="font-size:22px">${esc(it.en)}</div><div class="diff" style="font-size:16px">내 답: ${wordDiff(typed, it.en)}</div>`;
+      speak(it.en, slowRate()); $('#sNextWrapS').classList.remove('hidden');
+    } else {
+      fb.className = 'feedback bad'; fb.innerHTML = `다시 한 번! <div class="diff" style="font-size:18px;margin-top:4px">${wordDiff(typed, it.en)}</div><div class="muted" style="font-size:14px">빨간 단어가 틀렸어요</div>`;
+      speak(it.en, slowRate());
+      if (smode === 'order'){   // 맞는 앞부분만 남기고 나머지는 되돌리기
+        const b = sentNorm(it.en).split(' '); let k = 0;
+        while (k < sent.built.length && sentNorm(sent.built[k].w) === b[k]) k++;
+        sent.pool.push(...sent.built.splice(k)); paintOrder();
+      }
+    }
+  }
+  $('#sentBody').addEventListener('click', e => {
+    const t = e.target.closest('button'); if (!t || !sent) return;
+    const it = sent.qs[sent.i];
+    if (t.dataset.reveal){ t.outerHTML = `<span class="revealed">${esc(t.dataset.reveal)}</span>`; speak(t.dataset.reveal.replace(/[^\w']/g, ''), 0.8); }
+    if (t.dataset.hide !== undefined){ sent.hide = +t.dataset.hide; showSent(); }
+    if (t.id === 'sPrev'){ sent.i--; showSent(); }
+    if (t.id === 'sNextS'){ sent.i++; showSent(); }
+    if (t.dataset.pick !== undefined){ const [p] = sent.pool.splice(+t.dataset.pick, 1); sent.built.push(p); speak(p.w.replace(/[^\w']/g, ''), 1); paintOrder(); }
+    if (t.dataset.back !== undefined){ const [p] = sent.built.splice(+t.dataset.back, 1); sent.pool.push(p); paintOrder(); }
+    if (t.id === 'sCheckS') checkSent();
+    if (t.id === 'sHintS'){
+      const w = enWords(it.en);
+      if (smode === 'order'){   // 다음에 올 단어를 알려줘요
+        const k = sent.built.length, want = sentNorm(w[k] || '');
+        const at = sent.pool.findIndex(p => sentNorm(p.w) === want);
+        if (at >= 0){ const [p] = sent.pool.splice(at, 1); sent.built.push(p); paintOrder(); speak(p.w, 1); }
+      } else {
+        const typed = enWords($('#sWrite').value), next = w.slice(0, typed.length + 1).join(' ');
+        $('#sWrite').value = next + ' '; $('#sWrite').focus();
+      }
+    }
+    if (t.id === 'sAgainS') startSent();
+  });
+  $('#sentBody').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'sWrite'){ sent.done ? (sent.i++, showSent()) : checkSent(); } });
+  function sentEnd(){
+    const { score, qs } = sent;
+    $('#sentBody').innerHTML = smode === 'memo'
+      ? `<div class="quiz-q">🧠 ${qs.length}문장 다 봤어요!</div><p class="center muted">이제 🧩 순서 맞추기나 ⌨️ 영어로 쓰기로 시험해 보세요.</p><div class="center"><button class="btn primary" id="sAgainS">처음부터 다시</button></div>`
+      : `<div class="quiz-q">${score} / ${qs.length}</div>
+         <p class="center" style="font-size:20px">${score === qs.length ? '🏆 만점이에요!' : score >= qs.length * 0.7 ? '👍 잘했어요!' : '💪 다시 해 봐요!'}</p>
+         <div class="center"><button class="btn primary" id="sAgainS">다시 시험 보기</button></div>`;
   }
 
   items.forEach(i => { if (!i.group) i.group = String(i.id).startsWith('seed') ? '예시' : '기타'; });
