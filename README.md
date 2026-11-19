@@ -14,3 +14,5 @@
 - ☁️ 단어장은 이 저장소의 `data/words.json`에 저장돼서 여러 컴퓨터에서 같이 써요
 
 뜻·예문: Oxford Languages (Google 사전), 번역: Google 번역, 쉬운 예문: Tatoeba (CC BY 2.0 FR)
+
+📱 아이폰: Safari로 열고 공유 → 홈 화면에 추가하면 앱처럼 쓸 수 있어요 (처음 한 번 ☁️ 연결 키 넣기).

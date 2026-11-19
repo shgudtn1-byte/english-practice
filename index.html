@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>영어 발음 연습장</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="theme-color" content="#2f6fed">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="영어 연습">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
   :root{
     --bg:#f6f4ee; --card:#ffffff; --ink:#1f2430; --muted:#6b7280; --line:#e6e2d8;
@@ -98,6 +106,16 @@
   .contour svg{width:100%;height:70px;background:var(--bg);border-radius:10px}
   .tips{margin:10px 0;padding-left:20px;font-size:15px}
   .tips li{margin-bottom:4px}
+  /* 아이폰·좁은 화면: 탭을 한 줄로 옆으로 밀기, 입력칸 확대 방지(16px 이상) */
+  select.gsel{font-size:16px}
+  @media (max-width:640px){
+    .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:0 -16px 16px;padding:0 16px 4px}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{flex:0 0 auto;padding:9px 14px}
+    h1{font-size:22px}
+    .scores b{font-size:22px} .score.total b{font-size:28px}
+  }
+  button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
   .addgrid{display:grid;grid-template-columns:1fr auto;gap:8px}
   .addgrid input{font-size:20px}
   .ghead{padding:14px 4px 4px;font-weight:700;color:var(--accent);border-bottom:2px solid var(--line)}
@@ -124,7 +142,25 @@
 <div class="wrap">
   <h1>🗣️ 영어 발음 연습장</h1>
   <p class="sub">단어나 문장을 쓰고 미국식 발음으로 들어 보세요. 저장한 단어로 시험도 볼 수 있어요.</p>
-  <div class="row" style="margin:-6px 0 14px"><button class="btn small ghost" id="syncBadge" title="여러 컴퓨터에서 같은 단어장 쓰기">☁️ …</button></div>
+  <div class="row" style="margin:-6px 0 14px"><button class="btn small ghost" id="syncBadge" title="여러 컴퓨터에서 같은 단어장 쓰기">☁️ …</button>
+    <button class="btn small ghost" id="phoneBtn">📱 아이폰에 설치</button></div>
+  <div class="card hidden" id="phoneCard">
+    <b>📱 아이폰에서 앱처럼 쓰기</b>
+    <div id="phoneQR" class="hidden" style="margin-top:10px">
+      <p class="muted" style="font-size:14px;margin:0 0 8px">아이폰 <b>카메라</b>로 이 QR을 비추고, 뜨는 링크를 누르세요.</p>
+      <div id="qrBox" style="background:#fff;padding:10px;border-radius:12px;display:inline-block"></div>
+      <p class="muted" style="font-size:13px;margin:6px 0 0">주소: <a href="https://shgudtn1-byte.github.io/english-practice/">shgudtn1-byte.github.io/english-practice</a></p>
+    </div>
+    <ol style="font-size:15px;padding-left:20px;margin:10px 0 0">
+      <li><b>Safari</b>로 이 페이지를 열어요</li>
+      <li>아래쪽 <b>공유 버튼</b>(네모에 ↑ 화살표)을 눌러요</li>
+      <li><b>홈 화면에 추가</b> → 오른쪽 위 <b>추가</b>를 눌러요</li>
+      <li>홈 화면의 파란 <b>"영어 연습"</b> 아이콘으로 열어요</li>
+      <li>처음 한 번 위의 <b>☁️ 버튼</b>을 눌러 GitHub 연결 키를 붙여 넣어요. 그래야 컴퓨터와 같은 단어장을 써요.
+        <div class="muted" style="font-size:13px">맥과 아이폰이 같은 Apple ID라면 맥에서 키를 복사하고 아이폰에서 바로 붙여넣기 할 수 있어요.</div></li>
+      <li>🎤 말하기에서 마이크를 물어보면 <b>허용</b>을 눌러요</li>
+    </ol>
+  </div>
   <div class="card hidden" id="syncCard">
     <b>☁️ 여러 컴퓨터에서 같은 단어장 쓰기</b>
     <p class="muted" style="font-size:14px;margin:6px 0">단어장은 GitHub 저장소 <b>shgudtn1-byte/english-practice</b>의 <code>data/words.json</code>에 계속 저장돼요.
@@ -167,7 +203,7 @@
   <!-- 듣기 -->
   <section id="tab-listen">
     <div class="card">
-      <textarea id="input" placeholder="예: apple  /  How are you today?"></textarea>
+      <textarea id="input" autocorrect="off" spellcheck="false" placeholder="예: apple  /  How are you today?"></textarea>
       <div class="row" style="margin-top:12px">
         <button class="btn primary" id="playNormal">🔊 듣기</button>
         <button class="btn" id="playSlow">🐢 천천히</button>
@@ -212,7 +248,7 @@
     <div class="card">
       <strong>단어 하나씩 넣기</strong>
       <div class="addgrid" style="margin-top:10px">
-        <input type="text" id="addEn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="영어 (예: banana)">
+        <input type="text" id="addEn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="영어 (예: banana)">
         <button class="btn" id="addPlay" title="듣기">🔊</button>
         <input type="text" id="addKo" autocomplete="off" placeholder="뜻 (자동으로 나와요)">
         <button class="btn primary" id="addBtn">➕ 넣기</button>
@@ -878,7 +914,7 @@
         <div class="muted hidden" id="sKoText" style="margin-top:8px">${esc(it.ko||'')}</div>
         <div class="hint hidden" id="sHintText"></div>
       </div>
-      <input type="text" id="sInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="들은 것을 써 보세요" style="margin-top:14px;text-align:center">
+      <input type="text" id="sInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="들은 것을 써 보세요" style="margin-top:14px;text-align:center">
       <div class="center" style="margin-top:10px"><button class="btn primary" id="sCheck">확인</button></div>
       <div class="feedback" id="sFb"></div>
       <div class="center hidden" id="sNextWrap"><button class="btn primary" id="sNext">다음 ▶</button></div>`;
@@ -1059,7 +1095,7 @@
       <div class="row" style="justify-content:center">${play}</div>
       ${smode === 'order'
         ? `<div class="built" id="sBuilt"></div><div class="chips center" id="sPool"></div>`
-        : `<input type="text" id="sWrite" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="영어 문장을 써 보세요" style="margin-top:14px">`}
+        : `<input type="text" id="sWrite" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="영어 문장을 써 보세요" style="margin-top:14px">`}
       <div class="row" style="justify-content:center;margin-top:10px"><button class="btn small" id="sHintS">💡 힌트</button><button class="btn primary" id="sCheckS">확인</button></div>
       <div class="feedback" id="sFbS"></div>
       <div class="center hidden" id="sNextWrapS"><button class="btn primary" id="sNextS">다음 ▶</button></div>`;
@@ -1370,6 +1406,31 @@
   $('#syncNow').onclick = () => Sync.run();
   $('#tokenClear').onclick = () => { lsSet('eng-practice-gh-token', ''); toast('이 컴퓨터의 연결을 끊었어요'); Sync.run(); };
   Sync.init();
+
+  /* ---------- 아이폰 ---------- */
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  // 아이폰은 첫 터치 때 소리를 한 번 열어 줘야 그다음 자동 재생(시험 문제 소리 등)이 돼요
+  const unlockSpeech = () => {
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch {}
+    document.removeEventListener('touchend', unlockSpeech, true); document.removeEventListener('click', unlockSpeech, true);
+  };
+  document.addEventListener('touchend', unlockSpeech, true); document.addEventListener('click', unlockSpeech, true);
+  // 좁은 화면에서 누른 탭이 보이게 옆으로 밀기
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { try { t.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch {} }));
+  if (standalone) $('#phoneBtn').classList.add('hidden');   // 이미 홈 화면 앱으로 연 경우
+  else if (isIOS) $('#phoneBtn').textContent = '📱 홈 화면에 추가하기';
+  $('#phoneBtn').onclick = () => {
+    const card = $('#phoneCard'); card.classList.toggle('hidden');
+    if (isIOS || card.classList.contains('hidden') || $('#qrBox').childElementCount) return;
+    $('#phoneQR').classList.remove('hidden');   // 컴퓨터에서는 아이폰으로 찍을 QR 보여주기
+    const make = () => { try { new QRCode($('#qrBox'), { text: 'https://shgudtn1-byte.github.io/english-practice/', width: 180, height: 180 }); } catch { $('#qrBox').textContent = 'QR을 만들지 못했어요'; } };
+    if (window.QRCode) return make();
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    s.onload = make; s.onerror = () => { $('#qrBox').textContent = '인터넷 연결을 확인해 주세요'; };
+    document.head.appendChild(s);
+  };
 })();
 </script>
 </body>
