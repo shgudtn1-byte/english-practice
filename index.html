@@ -116,6 +116,14 @@
     .scores b{font-size:22px} .score.total b{font-size:28px}
   }
   button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  .kid-head{font-weight:700;margin-bottom:8px}
+  .sense.kid .easy{font-size:17px;margin:6px 0;line-height:1.5}
+  .more-dict{margin-top:10px}
+  .more-dict summary{cursor:pointer;color:var(--accent);font-size:14px;padding:6px 0}
+  .more-dict .dict{border:0;padding:6px 0 0;margin:0}
+  .kd-word{font-size:30px;font-weight:800;margin-bottom:4px}
+  .kd-rel{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;font-size:15px}
+  .kd-en{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:14px;padding:10px 12px;border-radius:12px;background:var(--soft);font-size:17px}
   .addgrid{display:grid;grid-template-columns:1fr auto;gap:8px}
   .addgrid input{font-size:20px}
   .ghead{padding:14px 4px 4px;font-weight:700;color:var(--accent);border-bottom:2px solid var(--line)}
@@ -191,6 +199,7 @@
 
   <div class="tabs">
     <button class="tab on" data-tab="listen">🔊 듣기</button>
+    <button class="tab" data-tab="kodict">📗 국어사전</button>
     <button class="tab" data-tab="ko">🇰🇷 한국말로</button>
     <button class="tab" data-tab="add">✍️ 배운 단어 넣기</button>
     <button class="tab" data-tab="saved">📒 저장한 단어 <span id="savedCount"></span></button>
@@ -225,6 +234,19 @@
       </div>
       <div class="speed" style="margin-top:10px">🐢 천천히 속도 <input type="range" id="slowRate" min="0.3" max="0.9" step="0.05" value="0.6"><span id="slowRateVal">0.6</span></div>
     </div>
+  </section>
+
+  <!-- 국어사전 -->
+  <section id="tab-kodict" class="hidden">
+    <div class="card">
+      <label class="muted" style="font-size:14px">📗 모르는 우리말 낱말을 써 보세요</label>
+      <div class="addgrid" style="margin-top:6px">
+        <input type="text" id="kdInput" autocomplete="off" placeholder="예: 경치, 부지런하다">
+        <button class="btn primary" id="kdGo">🔍 찾기</button>
+      </div>
+      <div class="chips" id="kdRecent"></div>
+    </div>
+    <div class="card hidden" id="kdResult"></div>
   </section>
 
   <!-- 한국말 → 영어 -->
@@ -532,6 +554,7 @@
     const key = text.toLowerCase();
     if (cache[key]) return cache[key];
     let res;
+    const kidP = /^[A-Za-z][A-Za-z'\-]*( [A-Za-z'\-]+)?$/.test(text) && text.length <= 30 ? kidLookup(text, 'en') : Promise.resolve(null);
     try {
       const j = await gtx(text, ['t','bd','md','ex']);
       const main = (j.sentences || []).map(s => s.trans || '').join('').trim();
@@ -578,19 +601,28 @@
       const short = senses.filter(s => s.terms.length).slice(0, 2).map(s => s.terms.slice(0, 2).join(', ')).join(' / ');
       res = { ko: short || main, senses, examples };
     } catch {
-      res = { ko: await myMemory(text), senses: [], examples: [] };
+      res = { ko: await myMemory(text).catch(() => ''), senses: [], examples: [] };
+    }
+    // 1학년용 쉬운 풀이가 있으면 그 뜻을 대표 뜻으로
+    const kid = await kidP;
+    if (kid && kid.found && kid.senses && kid.senses.length){
+      res.kid = kid;
+      res.ko = kid.senses.slice(0, 2).map(s => s.ko.split(',').slice(0, 2).map(x => x.trim()).join(', ')).join(' / ');
     }
     cache[key] = res; return res;
   }
   const translate = async text => (await lookup(text)).ko;
-  const hasDict = d => d && ((d.senses && d.senses.length) || (d.examples && d.examples.length));
+  const hasDict = d => d && ((d.kid && d.kid.senses && d.kid.senses.length) || (d.senses && d.senses.length) || (d.examples && d.examples.length));
   function dictHtml(d){
     if (!hasDict(d)) return '';
     const bold = s => esc(s).replace(/&lt;(\/?)b&gt;/g, '<$1b>');
     const exHtml = e => `<div class="ex"><button class="btn small" data-say="${esc(e.en)}" title="듣기">🔊</button><button class="btn small" data-say="${esc(e.en)}" data-slow="1" title="천천히">🐢</button>
         <div><div>${bold(e.html || e.en)}</div>${e.ko ? `<div class="muted">${esc(e.ko)}</div>` : ''}</div></div>`;
-    const ex = d.examples || [];
-    return `<div class="dict">` + d.senses.map(s => `
+    const ex = d.examples || [], senses = d.senses || [];
+    const oxford = senses.length || ex.length;
+    const kid = d.kid && d.kid.senses && d.kid.senses.length ? kidEnHtml(d.kid) : '';
+    if (kid) return `<div class="dict">${kid}${oxford ? `<details class="more-dict"><summary>📘 더 자세히 보기 (Oxford 영어 사전)</summary>${dictHtml({ senses, examples: ex })}</details>` : ''}</div>`;
+    return `<div class="dict">` + senses.map(s => `
       <div class="sense">
         <div><span class="pos">${esc(POS_KO[s.pos] || s.pos)}</span> <b>${esc(s.terms.join(', '))}</b></div>
         ${s.defs.length ? `<ol class="defs">${s.defs.map(x => `<li>${esc(x.en)}${x.ko ? `<div class="muted">${esc(x.ko)}</div>` : ''}${x.ex ? exHtml(x.ex) : ''}</li>`).join('')}</ol>` : ''}
@@ -599,6 +631,112 @@
       (ex.length ? `<div class="ex-title">📖 예문</div>` + ex.map(exHtml).join('') : '') +
       `<div class="src">뜻·예문: Oxford Languages (Google 사전)${ex.length ? ' · 쉬운 예문: Tatoeba' : ''}</div></div>`;
   }
+  /* ---------- 1학년용 쉬운 사전 (Claude, 서버에서 한 번 만든 풀이는 저장해 다시 씀) ---------- */
+  const KID_API = 'https://french-glasses.french-glasses-worker.workers.dev/kid-dict';
+  const kidMem = {};
+  async function kidLookup(word, lang){
+    const k = lang + ':' + word.trim().toLowerCase();
+    if (kidMem[k]) return kidMem[k];
+    try { const c = JSON.parse(lsGet('eng-practice-kid:' + k) || 'null'); if (c) return kidMem[k] = c; } catch {}
+    try {
+      const r = await fetch(KID_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ word: word.trim(), lang }) });
+      if (!r.ok) return null;
+      const j = await r.json(); delete j.cached;
+      lsSet('eng-practice-kid:' + k, JSON.stringify(j));
+      return kidMem[k] = j;
+    } catch { return null; }
+  }
+  const KID_POS = { noun: '이름 낱말 (명사)', verb: '움직임 낱말 (동사)', adjective: '모양·느낌 낱말 (형용사)', adverb: '어떻게 낱말 (부사)', pronoun: '대신 이름 (대명사)', preposition: '자리 낱말 (전치사)', conjunction: '잇는 낱말 (접속사)', interjection: '느낌 낱말 (감탄사)', determiner: '꾸밈 낱말', other: '' };
+  function kidEnHtml(k){
+    return `<div class="kid-head">👶 쉬운 뜻 풀이</div>` + k.senses.map(s => `
+      <div class="sense kid">
+        <div>${KID_POS[s.pos] ? `<span class="pos">${esc(KID_POS[s.pos])}</span> ` : ''}<b>${esc(s.ko)}</b></div>
+        <div class="easy">${esc(s.easy)}</div>
+        <div class="ex"><button class="btn small" data-say="${esc(s.example_en)}" title="듣기">🔊</button><button class="btn small" data-say="${esc(s.example_en)}" data-slow="1" title="천천히">🐢</button>
+          <div><div>${esc(s.example_en)}</div><div class="muted">${esc(s.example_ko)}</div></div></div>
+      </div>`).join('') + `<div class="src">쉬운 풀이: Claude (초등 1학년용)</div>`;
+  }
+  // 우리말 읽어 주기
+  function speakKo(text){
+    if (!text || !window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR'; u.rate = 0.9;
+    const v = speechSynthesis.getVoices().find(v => /^ko[-_]KR/i.test(v.lang) && /Yuna|유나|Google/i.test(v.name)) || speechSynthesis.getVoices().find(v => /^ko/i.test(v.lang));
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-sayko]'); if (b) speakKo(b.dataset.sayko);
+    const k = e.target.closest('[data-kd]'); if (k) openKoDict(k.dataset.kd);
+  });
+
+  /* ---------- 📗 국어사전 ---------- */
+  let kdSeq = 0;
+  const kdRecent = () => { try { return JSON.parse(lsGet('eng-practice-kd-recent') || '[]'); } catch { return []; } };
+  function paintKdRecent(){
+    const r = kdRecent();
+    $('#kdRecent').innerHTML = r.length ? '<span class="muted" style="font-size:13px;align-self:center">최근:</span>' + r.map(w => `<button class="chip" data-kd="${esc(w)}">${esc(w)}</button>`).join('') : '';
+  }
+  function openKoDict(word){
+    $('#kdInput').value = word;
+    if (!$('#tab-kodict').classList.contains('hidden')) return runKoDict();
+    document.querySelector('[data-tab=kodict]').click(); runKoDict();
+  }
+  // Claude를 못 쓸 때: 위키낱말사전(어른용 풀이)
+  async function wiktKo(word){
+    const r = await fetch('https://ko.wiktionary.org/w/api.php?action=query&prop=extracts&explaintext=1&format=json&redirects=1&origin=*&titles=' + encodeURIComponent(word));
+    const j = await r.json(), page = Object.values((j.query && j.query.pages) || {})[0];
+    if (!page || page.missing !== undefined || !page.extract) return [];
+    const part = page.extract.split(/\n== /).find(x => x.startsWith('한국어')) || '';
+    return part.split('\n').slice(1).map(x => x.trim()).filter(x => x && !/=|IPA|발음|로마자|어원|^\(|^한자/.test(x)).slice(0, 4);
+  }
+  async function runKoDict(){
+    const w = $('#kdInput').value.trim(); if (!w) return;
+    const seq = ++kdSeq, out = $('#kdResult');
+    out.classList.remove('hidden'); out.innerHTML = '<p class="muted center">찾는 중…</p>';
+    const [kid, enT] = await Promise.all([kidLookup(w, 'ko'), fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=en&dt=t&dj=1&q=' + encodeURIComponent(w)).then(r => r.json()).then(j => (j.sentences || []).map(s => s.trans || '').join('').trim()).catch(() => '')]);
+    if (seq !== kdSeq) return;
+    const rec = [w, ...kdRecent().filter(x => x !== w)].slice(0, 12); lsSet('eng-practice-kd-recent', JSON.stringify(rec)); paintKdRecent();
+    const en = (kid && kid.en) || enT;
+    const enRow = en && !/[가-힣]/.test(en) ? `<div class="kd-en">🇺🇸 영어로는 <b>${esc(en)}</b>
+      <button class="btn small" data-say="${esc(en)}">🔊</button><button class="btn small" id="kdToEn" data-en="${esc(en)}">영어 뜻 더 보기 ▶</button></div>` : '';
+    if (kid && kid.found === false){
+      out.innerHTML = `<p class="center" style="font-size:18px">🤔 ‘${esc(w)}’는 사전에 없는 말 같아요.</p>${(kid.suggest || []).length ? `<p class="center muted">이 낱말을 찾았나요?</p><div class="chips center">${kid.suggest.map(x => `<button class="chip" data-kd="${esc(x)}">${esc(x)}</button>`).join('')}</div>` : ''}`;
+      return;
+    }
+    if (kid && kid.senses && kid.senses.length){
+      const base = kid.word && kid.word !== w ? `<div class="muted" style="font-size:14px">‘${esc(w)}’의 기본 모양이에요</div>` : '';
+      out.innerHTML = `
+        <div class="kd-word">${esc(kid.word || w)} <button class="btn small" data-sayko="${esc(kid.word || w)}">🔊</button></div>${base}
+        ${kid.senses.map(s => `<div class="sense kid">
+          <div><span class="pos">${esc(s.pos)}</span></div>
+          <div class="easy">${esc(s.easy)}</div>
+          <div class="ex"><button class="btn small" data-sayko="${esc(s.example)}">🔊</button><div>${esc(s.example)}</div></div>
+        </div>`).join('')}
+        ${(kid.similar || []).length ? `<div class="kd-rel">🤝 비슷한 말 ${kid.similar.map(x => `<button class="chip" data-kd="${esc(x)}">${esc(x)}</button>`).join('')}</div>` : ''}
+        ${kid.opposite ? `<div class="kd-rel">↔️ 반대말 <button class="chip" data-kd="${esc(kid.opposite)}">${esc(kid.opposite)}</button></div>` : ''}
+        ${enRow}
+        <div class="src">풀이: Claude (초등 1학년용)</div>`;
+      return;
+    }
+    // 쉬운 풀이를 못 받았을 때: 위키낱말사전
+    let defs = []; try { defs = await wiktKo(w); } catch {}
+    if (seq !== kdSeq) return;
+    out.innerHTML = `
+      <div class="kd-word">${esc(w)} <button class="btn small" data-sayko="${esc(w)}">🔊</button></div>
+      ${defs.length ? `<ol class="defs">${defs.map(x => `<li>${esc(x)}</li>`).join('')}</ol><p class="muted" style="font-size:13px">어른용 사전 풀이예요. 어려운 말은 엄마 아빠에게 물어봐요.</p>` : '<p class="muted">사전에서 풀이를 찾지 못했어요.</p>'}
+      ${enRow}
+      <div class="src">풀이: 위키낱말사전</div>`;
+  }
+  $('#kdGo').onclick = runKoDict;
+  $('#kdInput').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); runKoDict(); } });
+  $('#kdResult').addEventListener('click', e => {
+    const b = e.target.closest('#kdToEn'); if (!b) return;
+    document.querySelector('[data-tab=listen]').click();
+    $('#input').value = b.dataset.en; scheduleTranslate();
+  });
+  paintKdRecent();
+
   document.addEventListener('click', e => { const b = e.target.closest('[data-say]'); if (b) speak(b.dataset.say, b.dataset.slow ? slowRate() : 1); });
   let currentDict = null;
   function scheduleTranslate(){
@@ -613,7 +751,8 @@
         if (seq !== transSeq) return;
         currentDict = { text: text.toLowerCase(), d };
         $('#meaning').value = d.ko; $('#dictCard').innerHTML = dictHtml(d);
-        $('#transStatus').textContent = hasDict(d) ? '· Oxford 사전' : d.ko ? '· 자동 번역' : '· 뜻을 직접 써 주세요';
+        if (/[가-힣]/.test(text)) $('#dictCard').innerHTML = `<div class="dict center">한국어 낱말이네요! <button class="btn small" data-kd="${esc(text)}">📗 국어사전에서 찾기</button></div>`;
+        $('#transStatus').textContent = d.kid ? '· 1학년용 쉬운 풀이' : hasDict(d) ? '· Oxford 사전' : d.ko ? '· 자동 번역' : '· 뜻을 직접 써 주세요';
       } catch {
         if (seq === transSeq) $('#transStatus').textContent = '· 인터넷 연결이 없어 뜻을 못 찾았어요. 직접 써 주세요';
       }
@@ -633,7 +772,7 @@
   const gname = i => i.group || '기타';
   const curGroup = () => $('#groupName').value.trim() || today();
   let lastAddedId = null;
-  const packDict = d => hasDict(d) ? { v: 2, ko: d.ko, senses: d.senses, examples: d.examples } : undefined;
+  const packDict = d => hasDict(d) ? { v: 3, ko: d.ko, senses: d.senses, examples: d.examples, kid: d.kid } : undefined;
   function addItem(en, ko, group, dict){
     en = (en||'').trim().replace(/\s+/g,' '); ko = (ko||'').trim();
     if (!en) return null;
@@ -712,7 +851,7 @@
     if (txt){
       const id = txt.closest('.item').dataset.id; openId = openId === id ? null : id;
       const it = items.find(i => i.id === id);
-      if (openId && it && (!it.dict || it.dict.v !== 2)) loadDict(it);
+      if (openId && it && (!it.dict || it.dict.v !== 3)) loadDict(it);
       return renderSaved();
     }
     const b = e.target.closest('button[data-act]'); if (!b) return;
@@ -788,10 +927,11 @@
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x===t));
     if (t.dataset.tab==='add') setTimeout(() => $('#addEn').focus(), 0);
     if (t.dataset.tab==='ko') setTimeout(() => $('#koInput').focus(), 0);
+    if (t.dataset.tab==='kodict') setTimeout(() => $('#kdInput').focus(), 0);
     if (t.dataset.tab==='sent') startSent();
     stopRec(true);
     if (t.dataset.tab==='speak') startSpeak();
-    ['listen','ko','add','saved','quiz','spell','sent','speak'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
+    ['listen','kodict','ko','add','saved','quiz','spell','sent','speak'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
     speechSynthesis?.cancel();
     if (t.dataset.tab==='quiz') startQuiz();
     if (t.dataset.tab==='spell') startSpell();
