@@ -135,6 +135,8 @@
   .pic-cap{color:#ddd;font-size:13px;text-align:center;max-width:600px}
   .pic-cap a{color:#9cc0ff}
   .pic-close{color:#fff;font-size:16px;padding:8px 16px;border:1px solid #888;border-radius:999px}
+  .addseg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .addseg .btn{justify-content:center;padding:14px 10px;font-size:17px}
   .addgrid{display:grid;grid-template-columns:1fr auto;gap:8px}
   .addgrid input{font-size:20px}
   .ghead{padding:14px 4px 4px;font-weight:700;color:var(--accent);border-bottom:2px solid var(--line)}
@@ -209,10 +211,9 @@
   </div>
 
   <div class="tabs">
-    <button class="tab on" data-tab="listen">🔊 듣기</button>
-    <button class="tab" data-tab="kodict">📗 국어사전</button>
-    <button class="tab" data-tab="ko">🇰🇷 한국말로</button>
-    <button class="tab" data-tab="add">✍️ 배운 단어 넣기</button>
+    <button class="tab on" data-tab="add">✍️ 단어 넣기</button>
+    <button class="tab" data-tab="ko">🇰🇷 한국말을 영어로</button>
+    <button class="tab" data-tab="listen">🔊 듣기</button>
     <button class="tab" data-tab="saved">📒 저장한 단어 <span id="savedCount"></span></button>
     <button class="tab" data-tab="quiz">📝 뜻 시험</button>
     <button class="tab" data-tab="spell">✏️ 받아쓰기</button>
@@ -221,7 +222,7 @@
   </div>
 
   <!-- 듣기 -->
-  <section id="tab-listen">
+  <section id="tab-listen" class="hidden">
     <div class="card">
       <textarea id="input" autocorrect="off" spellcheck="false" placeholder="예: apple  /  How are you today?"></textarea>
       <div class="row" style="margin-top:12px">
@@ -247,18 +248,6 @@
     </div>
   </section>
 
-  <!-- 국어사전 -->
-  <section id="tab-kodict" class="hidden">
-    <div class="card">
-      <label class="muted" style="font-size:14px">📗 모르는 우리말 낱말을 써 보세요</label>
-      <div class="addgrid" style="margin-top:6px">
-        <input type="text" id="kdInput" autocomplete="off" placeholder="예: 경치, 부지런하다">
-        <button class="btn primary" id="kdGo">🔍 찾기</button>
-      </div>
-      <div class="chips" id="kdRecent"></div>
-    </div>
-    <div class="card hidden" id="kdResult"></div>
-  </section>
 
   <!-- 한국말 → 영어 -->
   <section id="tab-ko" class="hidden">
@@ -271,15 +260,15 @@
     <div class="card hidden" id="koResult"></div>
   </section>
 
-  <!-- 배운 단어 넣기 -->
-  <section id="tab-add" class="hidden">
-    <div class="card">
-      <label class="muted" style="font-size:14px">📚 어디서 배웠나요? (예: Unit 3, 학원 숙제, 11월 12일)</label>
-      <input type="text" id="groupName" list="groupList" style="font-size:18px;margin-top:4px">
-      <datalist id="groupList"></datalist>
+  <!-- 단어 넣기: 영어 단어 검색 / 한국어 검색 -->
+  <section id="tab-add">
+    <div class="seg addseg">
+      <button class="btn primary" data-addmode="en">🔤 영어 단어 검색</button>
+      <button class="btn" data-addmode="ko">📗 한국어 검색</button>
     </div>
+    <div id="addEnPanel">
     <div class="card">
-      <strong>단어 하나씩 넣기</strong>
+      <strong>🔤 영어 단어 찾고 넣기</strong>
       <div class="addgrid" style="margin-top:10px">
         <input type="text" id="addEn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="영어 (예: banana)">
         <button class="btn" id="addPlay" title="듣기">🔊</button>
@@ -292,9 +281,26 @@
       <ul class="list" id="addedList"></ul>
     </div>
     <div class="card">
+      <label class="muted" style="font-size:14px">📚 어디서 배웠나요? (예: Unit 3, 학원 숙제, 11월 12일)</label>
+      <input type="text" id="groupName" list="groupList" style="font-size:18px;margin-top:4px">
+      <datalist id="groupList"></datalist>
+    </div>
+    <div class="card">
       <strong>여러 개 한꺼번에 넣기</strong>
       <textarea id="bulk" style="margin-top:10px;font-size:17px;min-height:120px" placeholder="한 줄에 하나씩 써요&#10;apple = 사과&#10;banana&#10;(뜻을 안 쓰면 자동으로 찾아줘요)"></textarea>
       <div class="row" style="margin-top:10px"><button class="btn primary" id="bulkBtn">📥 모두 넣기</button><span class="muted" id="bulkStatus"></span></div>
+    </div>
+    </div>
+    <div id="addKoPanel" class="hidden">
+    <div class="card">
+      <label class="muted" style="font-size:14px">📗 모르는 우리말 낱말을 써 보세요</label>
+      <div class="addgrid" style="margin-top:6px">
+        <input type="text" id="kdInput" autocomplete="off" placeholder="예: 경치, 부지런하다">
+        <button class="btn primary" id="kdGo">🔍 찾기</button>
+      </div>
+      <div class="chips" id="kdRecent"></div>
+    </div>
+    <div class="card hidden" id="kdResult"></div>
     </div>
   </section>
 
@@ -738,8 +744,8 @@
   }
   function openKoDict(word){
     $('#kdInput').value = word;
-    if (!$('#tab-kodict').classList.contains('hidden')) return runKoDict();
-    document.querySelector('[data-tab=kodict]').click(); runKoDict();
+    if ($('#tab-add').classList.contains('hidden')) document.querySelector('[data-tab=add]').click();
+    setAddMode('ko'); runKoDict();
   }
   // Claude를 못 쓸 때: 위키낱말사전(어른용 풀이)
   async function wiktKo(word){
@@ -788,6 +794,14 @@
       ${enRow}
       <div class="src">풀이: 위키낱말사전</div>`;
   }
+  // 단어 넣기 안의 두 가지: 영어 단어 검색 / 한국어 검색
+  function setAddMode(m){
+    document.querySelectorAll('[data-addmode]').forEach(b => b.classList.toggle('primary', b.dataset.addmode === m));
+    $('#addEnPanel').classList.toggle('hidden', m !== 'en'); $('#addKoPanel').classList.toggle('hidden', m !== 'ko');
+    lsSet('eng-practice-addmode', m);
+  }
+  document.querySelectorAll('[data-addmode]').forEach(b => b.onclick = () => { setAddMode(b.dataset.addmode); setTimeout(() => (b.dataset.addmode === 'ko' ? $('#kdInput') : $('#addEn')).focus(), 0); });
+  setAddMode(lsGet('eng-practice-addmode') === 'ko' ? 'ko' : 'en');
   $('#kdGo').onclick = runKoDict;
   $('#kdInput').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); runKoDict(); } });
   $('#kdResult').addEventListener('click', e => {
@@ -985,13 +999,12 @@
   /* ---------- 탭 ---------- */
   document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x===t));
-    if (t.dataset.tab==='add') setTimeout(() => $('#addEn').focus(), 0);
+    if (t.dataset.tab==='add') setTimeout(() => ($('#addKoPanel').classList.contains('hidden') ? $('#addEn') : $('#kdInput')).focus(), 0);
     if (t.dataset.tab==='ko') setTimeout(() => $('#koInput').focus(), 0);
-    if (t.dataset.tab==='kodict') setTimeout(() => $('#kdInput').focus(), 0);
     if (t.dataset.tab==='sent') startSent();
     stopRec(true);
     if (t.dataset.tab==='speak') startSpeak();
-    ['listen','kodict','ko','add','saved','quiz','spell','sent','speak'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
+    ['listen','ko','add','saved','quiz','spell','sent','speak'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
     speechSynthesis?.cancel();
     if (t.dataset.tab==='quiz') startQuiz();
     if (t.dataset.tab==='spell') startSpell();
@@ -1591,7 +1604,7 @@
 
   items.forEach(i => { if (!i.group) i.group = String(i.id).startsWith('seed') ? '예시' : '기타'; });
   renderSaved();
-  $('#input').focus();
+  ($('#addKoPanel').classList.contains('hidden') ? $('#addEn') : $('#kdInput')).focus();
 
   /* ---------- GitHub 연결 화면 ---------- */
   $('#syncBadge').onclick = () => $('#syncCard').classList.toggle('hidden');
