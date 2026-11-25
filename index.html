@@ -135,6 +135,20 @@
   .pic-cap{color:#ddd;font-size:13px;text-align:center;max-width:600px}
   .pic-cap a{color:#9cc0ff}
   .pic-close{color:#fff;font-size:16px;padding:8px 16px;border:1px solid #888;border-radius:999px}
+  .search-box{display:flex;align-items:center;gap:8px;margin-top:8px;padding:4px 6px 4px 12px;border:2px solid var(--line);border-radius:12px;background:var(--bg)}
+  .search-box:focus-within{border-color:var(--accent)}
+  .search-box input{flex:1;border:0;background:transparent;font:inherit;font-size:18px;padding:8px 0;color:var(--ink);outline:none;min-width:0}
+  .subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:-6px 0 16px;padding:10px;border-radius:14px;background:var(--soft)}
+  .tab.sub{padding:8px 13px;font-size:15px;background:var(--card)}
+  .tab.sub.on{background:var(--accent);color:var(--accent-ink)}
+  @media (max-width:640px){
+    /* 큰 탭 4개는 한 줄에 모두 보이게 */
+    .tabs{display:grid !important;grid-template-columns:repeat(4,1fr);gap:6px;overflow:visible !important;margin:0 0 14px !important;padding:0 !important}
+    .tabs .tab{padding:8px 4px;font-size:13px;line-height:1.25;white-space:normal;word-break:keep-all;text-align:center;border-radius:12px}
+    .subtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:6px;margin:-4px 0 14px}
+    .subtabs::-webkit-scrollbar{display:none}
+    .tab.sub{flex:0 0 auto;padding:7px 11px;font-size:14px}
+  }
   .addseg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
   .addseg .btn{justify-content:center;padding:14px 10px;font-size:17px}
   .addgrid{display:grid;grid-template-columns:1fr auto;gap:8px}
@@ -213,12 +227,15 @@
   <div class="tabs">
     <button class="tab on" data-tab="add">✍️ 단어 넣기</button>
     <button class="tab" data-tab="ko">🇰🇷 한국말을 영어로</button>
-    <button class="tab" data-tab="listen">🔊 듣기</button>
     <button class="tab" data-tab="saved">📒 저장한 단어 <span id="savedCount"></span></button>
-    <button class="tab" data-tab="quiz">📝 뜻 시험</button>
-    <button class="tab" data-tab="spell">✏️ 받아쓰기</button>
-    <button class="tab" data-tab="sent">🗣️ 문장 시험</button>
-    <button class="tab" data-tab="speak">🎤 말하기</button>
+    <button class="tab" data-tab="test">🧪 Test</button>
+  </div>
+  <div class="subtabs hidden" id="testTabs">
+    <button class="tab sub" data-tab="listen">🔊 듣기</button>
+    <button class="tab sub" data-tab="quiz">📝 뜻 시험</button>
+    <button class="tab sub" data-tab="spell">✏️ 받아쓰기</button>
+    <button class="tab sub" data-tab="sent">🗣️ 문장 시험</button>
+    <button class="tab sub" data-tab="speak">🎤 말하기</button>
   </div>
 
   <!-- 듣기 -->
@@ -312,8 +329,10 @@
         <button class="btn small ghost" id="exportBtn">내보내기</button>
         <button class="btn small ghost" id="importBtn">가져오기</button>
       </div>
+      <div class="search-box"><span>🔍</span><input type="search" id="savedSearch" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="영어나 한국말로 찾기 (예: apple, 사과)"><button class="btn small ghost hidden" id="savedSearchClear">✕</button></div>
+      <div class="muted" id="savedFound" style="font-size:14px;margin:6px 2px 0"></div>
       <ul class="list" id="savedList"></ul>
-      <p class="muted center" id="emptySaved">아직 저장한 것이 없어요. 듣기 탭에서 ⭐ 저장을 눌러 보세요.</p>
+      <p class="muted center" id="emptySaved">아직 저장한 것이 없어요. ✍️ 단어 넣기에서 단어를 넣어 보세요.</p>
     </div>
   </section>
 
@@ -896,8 +915,17 @@
   function renderSaved(){
     $('#savedCount').textContent = items.length ? `(${items.length})` : '';
     $('#emptySaved').classList.toggle('hidden', items.length > 0);
+    // 찾기: 영어, 한국말 뜻, 사전 풀이, 묶음 이름에서 찾아요 (띄어쓰기·대소문자 무시)
+    const q = ($('#savedSearch').value || '').trim().toLowerCase().replace(/\s+/g, '');
+    const flat = t => String(t || '').toLowerCase().replace(/\s+/g, '');
+    const hit = i => !q || flat(i.en).includes(q) || flat(i.ko).includes(q) || flat(gname(i)).includes(q)
+      || (i.dict && i.dict.kid && i.dict.kid.senses && i.dict.kid.senses.some(x => flat(x.ko).includes(q)));
+    const shown = items.filter(hit);
+    $('#savedSearchClear').classList.toggle('hidden', !q);
+    $('#savedFound').textContent = q ? (shown.length ? `🔍 ${shown.length}개 찾았어요` : '🔍 찾는 낱말이 없어요. 다른 말로 찾아보세요.') : '';
     $('#savedList').innerHTML = groups().map(g => {
-      const its = items.filter(i => gname(i) === g);
+      const its = shown.filter(i => gname(i) === g);
+      if (!its.length) return '';
       return `<li class="ghead row">📚 ${esc(g)} <span class="muted" style="font-weight:400;flex:1">· ${its.length}개</span><button class="btn small" data-spellgroup="${esc(g)}">✍️ 이 묶음 받아쓰기</button></li>` + its.map(rowHtml).join('');
     }).join('');
     $('#groupList').innerHTML = groups().map(g => `<option value="${esc(g)}">`).join('');
@@ -918,6 +946,8 @@
     const saved = items.find(i => i.en.toLowerCase() === en.toLowerCase());
     goSpeak([saved || { id: 'tmp', en, ko: $('#meaning').value.trim() }], '따라 말하기');
   };
+  $('#savedSearch').addEventListener('input', () => renderSaved());
+  $('#savedSearchClear').onclick = () => { $('#savedSearch').value = ''; renderSaved(); $('#savedSearch').focus(); };
   $('#savedList').onclick = $('#addedList').onclick = e => {
     const sg = e.target.closest('[data-spellgroup]');
     if (sg) return goSpell(items.filter(i => gname(i) === sg.dataset.spellgroup), sg.dataset.spellgroup);
@@ -997,8 +1027,18 @@
   };
 
   /* ---------- 탭 ---------- */
+  // Test 안에는 듣기·뜻 시험·받아쓰기·문장 시험·말하기가 있어요
+  const TEST_TABS = ['listen','quiz','spell','sent','speak'];
   document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+    if (t.dataset.tab === 'test'){
+      const last = lsGet('eng-practice-testtab');
+      return document.querySelector(`.tab.sub[data-tab="${TEST_TABS.includes(last) ? last : 'listen'}"]`).click();
+    }
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x===t));
+    const inTest = TEST_TABS.includes(t.dataset.tab);
+    $('#testTabs').classList.toggle('hidden', !inTest);
+    document.querySelector('[data-tab=test]').classList.toggle('on', inTest);
+    if (inTest) lsSet('eng-practice-testtab', t.dataset.tab);
     if (t.dataset.tab==='add') setTimeout(() => ($('#addKoPanel').classList.contains('hidden') ? $('#addEn') : $('#kdInput')).focus(), 0);
     if (t.dataset.tab==='ko') setTimeout(() => $('#koInput').focus(), 0);
     if (t.dataset.tab==='sent') startSent();
