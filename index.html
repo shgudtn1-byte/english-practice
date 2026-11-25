@@ -124,6 +124,17 @@
   .kd-word{font-size:30px;font-weight:800;margin-bottom:4px}
   .kd-rel{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;font-size:15px}
   .kd-en{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:14px;padding:10px 12px;border-radius:12px;background:var(--soft);font-size:17px}
+  .kid-emoji{font-size:26px;margin-left:4px;vertical-align:-3px}
+  .pics{margin:8px 0 12px}
+  .pic-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .pic{padding:0;border:0;border-radius:10px;overflow:hidden;background:var(--soft);aspect-ratio:1;cursor:zoom-in}
+  .pic.first{grid-column:span 2;grid-row:span 2}
+  .pic img{width:100%;height:100%;object-fit:cover;display:block}
+  .pic-view{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:10px}
+  .pic-view img{max-width:100%;max-height:75vh;border-radius:12px}
+  .pic-cap{color:#ddd;font-size:13px;text-align:center;max-width:600px}
+  .pic-cap a{color:#9cc0ff}
+  .pic-close{color:#fff;font-size:16px;padding:8px 16px;border:1px solid #888;border-radius:999px}
   .addgrid{display:grid;grid-template-columns:1fr auto;gap:8px}
   .addgrid input{font-size:20px}
   .ghead{padding:14px 4px 4px;font-weight:700;color:var(--accent);border-bottom:2px solid var(--line)}
@@ -637,7 +648,7 @@
   async function kidLookup(word, lang){
     const k = lang + ':' + word.trim().toLowerCase();
     if (kidMem[k]) return kidMem[k];
-    try { const c = JSON.parse(lsGet('eng-practice-kid:' + k) || 'null'); if (c) return kidMem[k] = c; } catch {}
+    try { const c = JSON.parse(lsGet('eng-practice-kid:' + k) || 'null'); if (c && 'wiki_title' in c) return kidMem[k] = c; } catch {}
     try {
       const r = await fetch(KID_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ word: word.trim(), lang }) });
       if (!r.ok) return null;
@@ -648,7 +659,7 @@
   }
   const KID_POS = { noun: '이름 낱말 (명사)', verb: '움직임 낱말 (동사)', adjective: '모양·느낌 낱말 (형용사)', adverb: '어떻게 낱말 (부사)', pronoun: '대신 이름 (대명사)', preposition: '자리 낱말 (전치사)', conjunction: '잇는 낱말 (접속사)', interjection: '느낌 낱말 (감탄사)', determiner: '꾸밈 낱말', other: '' };
   function kidEnHtml(k){
-    return `<div class="kid-head">👶 쉬운 뜻 풀이</div>` + k.senses.map(s => `
+    return `<div class="kid-head">👶 쉬운 뜻 풀이 ${k.emoji ? `<span class="kid-emoji">${esc(k.emoji)}</span>` : ''}</div>` + picsHtml(k) + k.senses.map(s => `
       <div class="sense kid">
         <div>${KID_POS[s.pos] ? `<span class="pos">${esc(KID_POS[s.pos])}</span> ` : ''}<b>${esc(s.ko)}</b></div>
         <div class="easy">${esc(s.easy)}</div>
@@ -668,6 +679,54 @@
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-sayko]'); if (b) speakKo(b.dataset.sayko);
     const k = e.target.closest('[data-kd]'); if (k) openKoDict(k.dataset.kd);
+  });
+
+  /* ---------- 📷 낱말 사진: 위키백과 대표 사진 + Openverse 사진 찾기(성인물 제외) ---------- */
+  const picsHtml = k => (k && (k.wiki_title || k.photo_query))
+    ? `<div class="pics" data-wiki="${esc(k.wiki_title || '')}" data-q="${esc(k.photo_query || '')}"><div class="muted" style="font-size:13px">📷 사진 찾는 중…</div></div>` : '';
+  const picMem = {};
+  const picCache = key => { if (picMem[key]) return picMem[key]; try { const c = JSON.parse(lsGet('eng-practice-pic:' + key) || 'null'); if (c) return picMem[key] = c; } catch {} return null; };
+  const picSave = (key, v) => { lsSet('eng-practice-pic:' + key, JSON.stringify(v)); return picMem[key] = v; };
+  async function wikiPic(title){
+    const key = 'w:' + title, c = picCache(key); if (c) return c;
+    try {
+      const r = await fetch('https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&piprop=thumbnail&pithumbsize=600&format=json&redirects=1&origin=*&titles=' + encodeURIComponent(title));
+      const page = Object.values(((await r.json()).query || {}).pages || {})[0];
+      return picSave(key, page && page.thumbnail ? { src: page.thumbnail.source, title: page.title } : { src: '' });
+    } catch { return { src: '' }; }
+  }
+  async function openversePics(q){
+    const key = 'o:' + q.toLowerCase(), c = picCache(key); if (c) return c;
+    try {
+      const r = await fetch('https://api.openverse.org/v1/images/?mature=false&page_size=10&q=' + encodeURIComponent(q));
+      if (!r.ok) return [];
+      const list = ((await r.json()).results || []).filter(x => x.thumbnail && !x.mature).slice(0, 4)
+        .map(x => ({ src: x.thumbnail, title: x.title || q, by: x.creator || '', license: (x.license || '').toUpperCase(), page: x.foreign_landing_url || '' }));
+      return picSave(key, list);
+    } catch { return []; }
+  }
+  async function fillPics(box){
+    box.dataset.done = '1';
+    const title = box.dataset.wiki, q = box.dataset.q;
+    const [main, more] = await Promise.all([title ? wikiPic(title) : { src: '' }, q ? openversePics(q) : []]);
+    const imgs = [];
+    if (main.src) imgs.push({ src: main.src, title: main.title, by: '위키백과', license: '', page: 'https://en.wikipedia.org/wiki/' + encodeURIComponent(main.title), big: true });
+    more.forEach(m => imgs.push(m));
+    if (!imgs.length){ box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="pic-grid">${imgs.slice(0, 5).map((m, i) => `<button class="pic${i === 0 ? ' first' : ''}" data-pic="${i}" title="${esc(m.title)}"><img loading="lazy" src="${esc(m.src)}" alt="${esc(m.title)}" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></button>`).join('')}</div>
+      <div class="muted" style="font-size:11px;text-align:right">사진: ${main.src ? '위키백과' : ''}${main.src && more.length ? ' · ' : ''}${more.length ? 'Openverse (CC 사진)' : ''} · 누르면 크게 보여요</div>`;
+    box._imgs = imgs.slice(0, 5);
+  }
+  // 화면에 새로 그려진 사진 칸을 찾아 채우기
+  new MutationObserver(() => document.querySelectorAll('.pics:not([data-done])').forEach(fillPics)).observe(document.body, { childList: true, subtree: true });
+  // 사진 크게 보기
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.pic'); if (!b) return;
+    const box = b.closest('.pics'), m = box && box._imgs && box._imgs[+b.dataset.pic]; if (!m) return;
+    const ov = document.createElement('div'); ov.className = 'pic-view';
+    ov.innerHTML = `<img src="${esc(m.src)}" alt="${esc(m.title)}" referrerpolicy="no-referrer"><div class="pic-cap">${esc(m.title)}${m.by ? ` · ${esc(m.by)}` : ''}${m.license ? ` (${esc(m.license)})` : ''}${m.page ? ` · <a href="${esc(m.page)}" target="_blank" rel="noopener">출처</a>` : ''}</div><div class="pic-close">✕ 닫기</div>`;
+    ov.onclick = ev => { if (!ev.target.closest('a')) ov.remove(); };
+    document.body.appendChild(ov);
   });
 
   /* ---------- 📗 국어사전 ---------- */
@@ -707,7 +766,8 @@
     if (kid && kid.senses && kid.senses.length){
       const base = kid.word && kid.word !== w ? `<div class="muted" style="font-size:14px">‘${esc(w)}’의 기본 모양이에요</div>` : '';
       out.innerHTML = `
-        <div class="kd-word">${esc(kid.word || w)} <button class="btn small" data-sayko="${esc(kid.word || w)}">🔊</button></div>${base}
+        <div class="kd-word">${esc(kid.word || w)} ${kid.emoji ? `<span class="kid-emoji">${esc(kid.emoji)}</span>` : ''}<button class="btn small" data-sayko="${esc(kid.word || w)}">🔊</button></div>${base}
+        ${picsHtml(kid)}
         ${kid.senses.map(s => `<div class="sense kid">
           <div><span class="pos">${esc(s.pos)}</span></div>
           <div class="easy">${esc(s.easy)}</div>
@@ -772,7 +832,7 @@
   const gname = i => i.group || '기타';
   const curGroup = () => $('#groupName').value.trim() || today();
   let lastAddedId = null;
-  const packDict = d => hasDict(d) ? { v: 3, ko: d.ko, senses: d.senses, examples: d.examples, kid: d.kid } : undefined;
+  const packDict = d => hasDict(d) ? { v: 4, ko: d.ko, senses: d.senses, examples: d.examples, kid: d.kid } : undefined;
   function addItem(en, ko, group, dict){
     en = (en||'').trim().replace(/\s+/g,' '); ko = (ko||'').trim();
     if (!en) return null;
@@ -851,7 +911,7 @@
     if (txt){
       const id = txt.closest('.item').dataset.id; openId = openId === id ? null : id;
       const it = items.find(i => i.id === id);
-      if (openId && it && (!it.dict || it.dict.v !== 3)) loadDict(it);
+      if (openId && it && (!it.dict || it.dict.v !== 4)) loadDict(it);
       return renderSaved();
     }
     const b = e.target.closest('button[data-act]'); if (!b) return;
